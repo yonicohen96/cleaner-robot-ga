@@ -1,0 +1,41 @@
+{
+  "__class__": "Scene",
+  "obstacles": [ {
+      "__class__": "ObstaclePolygon",
+      "poly": [
+        [
+          -1.0,
+          -1.0
+        ],
+        [
+          -1.0,
+          1.0
+        ],
+        [
+          1.0,
+          1.0
+        ],
+        [
+          1.0,
+          -1.0
+        ]
+      ],
+      "data": {}
+    }],
+  "robots": [
+    {
+      "__class__": "RobotDisc",
+      "radius": 1.0,
+      "start": [
+        -10.0,
+        0.0
+      ],
+      "end": [
+        10.0,
+        0.0
+      ],
+      "data": {}
+    }
+  ],
+  "metadata": {}
+}
