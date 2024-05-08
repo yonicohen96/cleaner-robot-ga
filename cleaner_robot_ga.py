@@ -29,7 +29,7 @@ class CleanerRobotGA(Solver):
     """
 
     def __init__(self, num_landmarks, k, bounding_margin_width_factor=Solver.DEFAULT_BOUNDS_MARGIN_FACTOR,
-                 population_size: int = 1):
+                 population_size: int = 10):
         super().__init__(bounding_margin_width_factor)
         self.num_landmarks = num_landmarks
         self.k = k
@@ -108,7 +108,6 @@ class CleanerRobotGA(Solver):
             while not nx.algorithms.has_path(robot_roadmap, robot.start, random_point) or not nx.algorithms.has_path(
                     robot_roadmap, random_point, robot.end):
                 random_point = random.choice(list(robot_roadmap.nodes()))
-            print(random_point, file=self.writer)
             path_start = nx.algorithms.shortest_path(robot_roadmap, robot.start, random_point, weight='weight')
             path_end = nx.algorithms.shortest_path(robot_roadmap, random_point, robot.end, weight='weight')
             individual[robot] = list(path_start)[:-1] + list(path_end)
@@ -129,52 +128,54 @@ class CleanerRobotGA(Solver):
             sample = self.sampler.sample()
         return sample
 
+    def create_robot_roadmap(self, robot: Robot):
+        robot_roadmap = nx.Graph()
+
+        # Add points to robot's roadmap
+        robot_roadmap.add_node(robot.start)
+        robot_roadmap.add_node(robot.end)
+        for i in range(self.num_landmarks):
+            p_rand = self.new_sample_free(robot)
+            robot_roadmap.add_node(p_rand)
+            if i % 100 == 0 and self.verbose:
+                print('added', i, 'landmarks in PRM', file=self.writer)
+
+        self.nearest_neighbors.fit(list(robot_roadmap.nodes))
+
+        # Connect all points to their k nearest neighbors
+        for cnt, point in enumerate(robot_roadmap.nodes):
+            neighbors = self.nearest_neighbors.k_nearest(point, self.k + 1)
+            for neighbor in neighbors:
+                if self.collision_free(neighbor, point, robot):
+                    robot_roadmap.add_edge(point, neighbor, weight=self.metric.dist(point, neighbor).to_double())
+
+            if cnt % 100 == 0 and self.verbose:
+                print('connected', cnt, 'landmarks to their nearest neighbors', file=self.writer)
+        assert nx.algorithms.has_path(robot_roadmap, robot.start, robot.end)
+        return robot_roadmap
+
+
     def load_scene(self, scene: Scene):
         super().load_scene(scene)
         self.sampler.set_scene(scene, self._bounding_box)
 
-        # Build collision detection for each robot.
+        # Build collision detection and roadmap for each robot.
         for robot in scene.robots:
             self.collision_detection[robot] = collision_detection.ObjectCollisionDetection(scene.obstacles, robot)
+            self.roadmaps[robot] = self.create_robot_roadmap(robot)
 
-        # Build roadmap for each robot.
-        for robot in scene.robots:
-            self.roadmaps[robot] = nx.Graph()
-            # Add points to robot's roadmap
-            self.roadmaps[robot].add_node(robot.start)
-            self.roadmaps[robot].add_node(robot.end)
-            for i in range(self.num_landmarks):
-                p_rand = self.new_sample_free(robot)
-                self.roadmaps[robot].add_node(p_rand)
-                if i % 100 == 0 and self.verbose:
-                    print('added', i, 'landmarks in PRM', file=self.writer)
-            # TODO if not nx.algorithms.has_path(self.roadmap, self.start, self.end)... (either add more points or return)
+        self.population = self.get_initial_population()
 
-            self.nearest_neighbors.fit(list(self.roadmaps[robot].nodes))
+        # TODO: Generate initial population - for each robot choose a random point and find shortest path...
 
-            # Connect all points to their k nearest neighbors
-            for cnt, point in enumerate(self.roadmaps[robot].nodes):
-                neighbors = self.nearest_neighbors.k_nearest(point, self.k + 1)
-                for neighbor in neighbors:
-                    if self.collision_free(neighbor, point, robot):
-                        self.roadmaps[robot].add_edge(point, neighbor, weight=self.metric.dist(point, neighbor).to_double())
+        # TODO: Generate Initial population.
 
-                if cnt % 100 == 0 and self.verbose:
-                    print('connected', cnt, 'landmarks to their nearest neighbors', file=self.writer)
-
-        self.population = self.get_initial_population()[0]
-
-        # Generate initial population - for each robot choose a random point and find shortest path...
-
-        # Generate Initial population.
-
-        # Evolution loop:
+        # TODO: Evolution loop:
         #   Compute fitness.
         #   Create next Generation:
         #      Reproduction
         #      Crossover + Mutation
 
-        # Select best individual
 
         pass
 
@@ -186,33 +187,11 @@ class CleanerRobotGA(Solver):
         :return: path collection of motion planning
         :rtype: :class:`~discopygal.solvers.PathCollection`
         """
-        # TODO check what should be the types of the solution - try to create a solution manually, return it without
-        #   adding it to the roadmap and check if we see it in the solver viewer. Then check what is the difference
-        # if not nx.algorithms.has_path(self.roadmap, self.start, self.end):
-        #     if self.verbose:
-        #         print('no path found...', file=self.writer)
-        #     return PathCollection()
-        #
-        # # Convert from a sequence of Point_d points to PathCollection
-        # tensor_path = nx.algorithms.shortest_path(self.roadmap, self.start, self.end, weight='weight')
-        # path_collection = PathCollection()
-        # for i, robot in enumerate(self.scene.robots):
-        #     points = []
-        #     for point in tensor_path:
-        #         points.append(PathPoint(Point_2(point[2 * i], point[2 * i + 1])))
-        #     path = Path(points)
-        #     path_collection.add_robot_path(robot, path)
-        #
-        # if self.verbose:
-        #     print('successfully found a path...', file=self.writer)
-        #
-
         path_collection = PathCollection()
-        for robot, robot_path in self.population.items():
+        # TODO instead of population[0] use the fittest one.
+        for robot, robot_path in self.population[0].items():
             path_collection.add_robot_path(robot, Path([PathPoint(point) for point in robot_path]))
         print(path_collection)
-        #
-
 
         # path_collection = PathCollection()
         # tensor_path = [[-10, 0, 10, 0], [0, 2, 0, 2], [10, 0, -10, 0]]

@@ -6,7 +6,7 @@ from typing import Callable
 
 
 def get_path_length(path_collection: PathCollection) -> float:
-    length= 0.0
+    length = 0.0
     for path in list(path_collection.paths.values()):
         points = path.points
         metric = Metric_Euclidean()
