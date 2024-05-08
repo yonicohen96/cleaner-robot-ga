@@ -25,7 +25,8 @@ class CleanerRobotGA(Solver):
     :type k: :class:`int`
 
     """
-    def __init__(self, num_landmarks, k, bounding_margin_width_factor=Solver.DEFAULT_BOUNDS_MARGIN_FACTOR):
+    def __init__(self, num_landmarks, k, bounding_margin_width_factor=Solver.DEFAULT_BOUNDS_MARGIN_FACTOR,
+                 timeout: int = 10):
         super().__init__(bounding_margin_width_factor)
         self.num_landmarks = num_landmarks
         self.k = k
@@ -161,6 +162,23 @@ class CleanerRobotGA(Solver):
 
             if cnt % 100 == 0 and self.verbose:
                 print('connected', cnt, 'landmarks to their nearest neighbors', file=self.writer)
+
+    def get_initial_population(self):
+        pass
+
+
+    def run(self):
+        # Generate Initial population.
+
+        # Evolution loop:
+        #   Compute fitness.
+        #   Create next Generation:
+        #      Reproduction
+        #      Crossover + Mutation
+
+        # Select best individual
+
+        pass
 
     def solve(self):
         """
