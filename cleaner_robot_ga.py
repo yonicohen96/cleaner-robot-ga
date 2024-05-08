@@ -23,30 +23,17 @@ class CleanerRobotGA(Solver):
     :type num_landmarks: :class:`int`
     :param k: number of nearest neighbors to connect
     :type k: :class:`int`
-    :param nearest_neighbors: a nearest neighbors algorithm. if None then use sklearn implementation
-    :type nearest_neighbors: :class:`~discopygal.solvers.nearest_neighbors.NearestNeighbors` or :class:`None`
-    :param metric: a metric for weighing edges, can be different then the nearest_neighbors metric!
-        If None then use euclidean metric
-    :type metric: :class:`~discopygal.solvers.metrics.Metric` or :class:`None`
-    :param sampler: sampling algorithm/method. if None then use uniform sampling
-    :type sampler: :class:`~discopygal.solvers.samplers.Sampler`
+
     """
-    def __init__(self, num_landmarks, k, bounding_margin_width_factor=Solver.DEFAULT_BOUNDS_MARGIN_FACTOR, nearest_neighbors=None, metric=None, sampler=None):
+    def __init__(self, num_landmarks, k, bounding_margin_width_factor=Solver.DEFAULT_BOUNDS_MARGIN_FACTOR):
         super().__init__(bounding_margin_width_factor)
         self.num_landmarks = num_landmarks
         self.k = k
 
-        self.nearest_neighbors : NearestNeighbors = nearest_neighbors
-        if self.nearest_neighbors is None:
-            self.nearest_neighbors = NearestNeighbors_sklearn()
+        self.nearest_neighbors = NearestNeighbors_sklearn()
 
-        self.metric : Metric = metric
-        if self.metric is None:
-            self.metric = Metric_Euclidean
-
-        self.sampler : Sampler = sampler
-        if self.sampler is None:
-            self.sampler = Sampler_Uniform()
+        self.metric = Metric_Euclidean
+        self.sampler = Sampler_Uniform()
 
         self.roadmap = None
         self.collision_detection = {}
@@ -78,7 +65,7 @@ class CleanerRobotGA(Solver):
         :param d: arguments dict
         :type d: :class:`dict`
         """
-        return PRM(d['num_landmarks'], d['k'], FT(d['bounding_margin_width_factor']), None, None, None)
+        return CleanerRobotGA(d['num_landmarks'], d['k'], FT(d['bounding_margin_width_factor']))
 
 
     def get_graph(self):

@@ -19,11 +19,10 @@ def get_time_and_clearance(solver_class, num_landmarks, k, scene):
         solver.load_scene(scene)
         path_collection = solver.solve()
         if path_collection.paths is None or not list(path_collection.paths.values()):
+            print(3)
             continue
         total_time = time.time() - start_time
-        print(path_collection)
         return total_time, path_collection
-
 
 
 def run_exp(num_iterations=5, num_landmarks=1000, k=15):
