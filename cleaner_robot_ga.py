@@ -164,6 +164,7 @@ class CleanerRobotGA(Solver):
                 print('connected', cnt, 'landmarks to their nearest neighbors', file=self.writer)
 
     def get_initial_population(self):
+
         pass
 
 
