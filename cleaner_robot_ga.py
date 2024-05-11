@@ -1,6 +1,6 @@
 import networkx as nx
 import matplotlib.pyplot as plt
-
+from scipy import special
 from discopygal.solvers import Robot, RobotDisc, RobotPolygon, RobotRod
 from discopygal.solvers import Obstacle, ObstacleDisc, ObstaclePolygon, Scene
 from discopygal.solvers import PathPoint, Path, PathCollection
@@ -19,25 +19,60 @@ from utils import *
 
 @dataclass
 class RobotPath:
-    def __init__(self, robot: Robot, path: list[Point_2]):
+    def __init__(self, robot: Robot, path: list[Point_2], cell_size: float):
         self.robot: Robot = robot
         self.path: list[Point_2] = path
-
-    def get_path_length(self) -> float:
-        return get_point2_list_length(self.path)
-
-    def get_path_cells(self, cell_size: float) -> set[tuple[int, int]]:
-        cells = set()
+        self.path_length: float = get_point2_list_length(self.path)
+        self.cells = set()
         for point in self.path:
-            cells.add(get_cell_indices(point, cell_size))
-        return cells
+            self.cells.add(get_cell_indices(point, cell_size))
 
     def print_summary(self, cell_size: float, writer, robot_idx: int):
         print(
             f"Robot: {robot_idx}"
-            f"\n\tPath length: {self.get_path_length()}"
-            f"\n\tPath cells: {len(self.get_path_cells(cell_size))}",
+            f"\n\tPath length: {self.path_length}"
+            f"\n\tPath cells: {len(self.cells)}",
             file=writer)
+
+
+@dataclass
+class FitnessValue:
+    cells_num: int
+    length: float
+
+    def __lt__(self, other):
+        return (self.cells_num, -self.length) < (other.cells_num, -other.length)
+
+
+def get_fitness_distribution(fitness_values: list[FitnessValue], cell_num_length_ratio: float):
+    cell_num_logits = [fitness_value.cells_num for fitness_value in fitness_values]
+    # The lower the length is, the highest probability it should get and therefore we use `-fitness_value.length`.
+    length_logits = [-fitness_value.length for fitness_value in fitness_values]
+    cell_num_distribution = special.softmax(cell_num_logits)
+    length_distribution = special.softmax(length_logits)
+    return cell_num_length_ratio * cell_num_distribution + (1 - cell_num_length_ratio) * length_distribution
+
+
+def get_highest_k_indices(values: list, k: int) -> list[int]:
+    sorted_indices = sorted(range(len(values)), key=lambda i: values[i], reverse=True)
+    return sorted_indices[:k]
+
+
+def get_crossover(
+        population: list[list[RobotPath]], fitness_distribution: np.ndarray, num_individuals) -> list[list[RobotPath]]:
+    crossovers = []
+    parents = random.choices(population, weights=fitness_distribution, k=num_individuals * 2)
+    for child_idx in range(num_individuals):
+        # Create the child_idx child based on the (child_idx * 2), (child_idx * 2 + 1)  parents.
+        child = []
+        parent_0 = parents[child_idx * 2]
+        parent_1 = parents[child_idx * 2 + 1]
+        parents_for_crossover = [parent_0, parent_1]
+        for robot_path_idx in range(len(parent_1)):
+            selected_parent = parents_for_crossover[random.randint(0, 1)]
+            child.append(selected_parent[robot_path_idx])
+        crossovers.append(child)
+    return crossovers
 
 
 class CleanerRobotGA(Solver):
@@ -56,7 +91,8 @@ class CleanerRobotGA(Solver):
     def __init__(self, num_landmarks, k, bounding_margin_width_factor=Solver.DEFAULT_BOUNDS_MARGIN_FACTOR,
                  population_size: int = 10, evolution_steps: int = 100,
                  length_weight: float = 1.0, num_cells_weight: float = 1.0,
-                 cell_size: float = 1.0):
+                 cell_size: float = 1.0, elite_proportion: float = 0.1,
+                 cells_length_weights_ratio: float = 0.8):
         super().__init__(bounding_margin_width_factor)
         self.num_landmarks = num_landmarks
         self.k = k
@@ -65,6 +101,7 @@ class CleanerRobotGA(Solver):
         self.length_weight = length_weight
         self.num_cells_weight = num_cells_weight
         self.cell_size = cell_size
+        self.cells_length_weights_ratio = cells_length_weights_ratio
 
         self.nearest_neighbors = NearestNeighbors_sklearn()
 
@@ -77,6 +114,7 @@ class CleanerRobotGA(Solver):
         self.start = None
         self.end = None
         self.population: list[list[RobotPath]] = []
+        self.elite_size = int(elite_proportion * self.population_size)
 
     @staticmethod
     def get_arguments():
@@ -142,7 +180,8 @@ class CleanerRobotGA(Solver):
                 random_point = random.choice(list(robot_roadmap.nodes()))
             path_start = nx.algorithms.shortest_path(robot_roadmap, robot.start, random_point, weight='weight')
             path_end = nx.algorithms.shortest_path(robot_roadmap, random_point, robot.end, weight='weight')
-            robots_paths.append(RobotPath(robot=robot, path=list(path_start)[:-1] + list(path_end)))
+            robots_paths.append(RobotPath(robot=robot, path=list(path_start)[:-1] + list(path_end),
+                                          cell_size=self.cell_size))
         return robots_paths
 
     def get_initial_population(self) -> list[list[RobotPath]]:
@@ -151,13 +190,13 @@ class CleanerRobotGA(Solver):
             population.append(self.get_random_robots_paths())
         return population
 
-    def get_fitness(self, robots_paths: list[RobotPath]) -> tuple[float, float]:
+    def get_fitness(self, robots_paths: list[RobotPath]) -> FitnessValue:
         total_length = 0.0
         cells = set()
-        for robot in robots_paths:
-            total_length += robot.get_path_length()
-            cells.update(robot.get_path_cells(self.cell_size))
-        return len(cells), -total_length
+        for robot_path in robots_paths:
+            total_length += robot_path.path_length
+            cells.update(robot_path.cells)
+        return FitnessValue(len(cells), total_length)
 
     def new_sample_free(self, robot: Robot):
         """
@@ -201,15 +240,23 @@ class CleanerRobotGA(Solver):
             self.collision_detection[robot] = collision_detection.ObjectCollisionDetection(scene.obstacles, robot)
             self.roadmaps[robot] = self.create_robot_roadmap(robot)
 
+        # Get random initial population.
         self.population = self.get_initial_population()
 
-        # TODO: Evolution loop:
-        #   Compute fitness.
-        #   Create next Generation:
-        #      Reproduction
-        #      Crossover + Mutation
+        # Evolution steps.
 
-        pass
+        for step in range(self.evolution_steps):
+            fitness_values = [self.get_fitness(robot_path) for robot_path in self.population]
+
+            elite_population = [self.population[i] for i in get_highest_k_indices(fitness_values, self.elite_size)]
+
+            fitness_distribution = get_fitness_distribution(fitness_values, self.cells_length_weights_ratio)
+            crossover_population = get_crossover(self.population, fitness_distribution,
+                                                 self.population_size - len(elite_population))
+
+            # TODO mutate.
+
+            self.population = elite_population + crossover_population
 
     def solve(self):
         """
@@ -222,7 +269,6 @@ class CleanerRobotGA(Solver):
         path_collection = PathCollection()
         fittest_robot_paths = max(self.population, key=lambda robot_paths: self.get_fitness(robot_paths))
         for i, robot_path in enumerate(fittest_robot_paths):
-            robot_path.print_summary(self.cell_size, self.writer, i)
             path_collection.add_robot_path(robot_path.robot, Path([PathPoint(point) for point in robot_path.path]))
 
         return path_collection
