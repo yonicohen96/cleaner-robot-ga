@@ -19,8 +19,9 @@ from utils import *
 
 @dataclass
 class RobotPath:
-    robot: Robot
-    path: list[Point_2]
+    def __init__(self, robot: Robot, path: list[Point_2]):
+        self.robot: Robot = robot
+        self.path: list[Point_2] = path
 
     def get_path_length(self) -> float:
         return get_point2_list_length(self.path)
@@ -30,6 +31,13 @@ class RobotPath:
         for point in self.path:
             cells.add(get_cell_indices(point, cell_size))
         return cells
+
+    def print_summary(self, cell_size: float, writer, robot_idx: int):
+        print(
+            f"Robot: {robot_idx}"
+            f"\n\tPath length: {self.get_path_length()}"
+            f"\n\tPath cells: {len(self.get_path_cells(cell_size))}",
+            file=writer)
 
 
 class CleanerRobotGA(Solver):
@@ -68,7 +76,7 @@ class CleanerRobotGA(Solver):
         self.collision_detection = {}
         self.start = None
         self.end = None
-        self.population = None
+        self.population: list[list[RobotPath]] = []
 
     @staticmethod
     def get_arguments():
@@ -84,7 +92,7 @@ class CleanerRobotGA(Solver):
             'num_landmarks': ('Number of Landmarks:', 1000, int),
             'k': ('K for nearest neighbors:', 15, int),
             'bounding_margin_width_factor': (
-            'Margin width factor (for bounding box):', Solver.DEFAULT_BOUNDS_MARGIN_FACTOR, FT),
+                'Margin width factor (for bounding box):', Solver.DEFAULT_BOUNDS_MARGIN_FACTOR, FT),
         }
 
     @staticmethod
@@ -143,14 +151,13 @@ class CleanerRobotGA(Solver):
             population.append(self.get_random_robots_paths())
         return population
 
-    def get_fitness(self, robots_paths: list[RobotPath]) -> float:
+    def get_fitness(self, robots_paths: list[RobotPath]) -> tuple[float, float]:
         total_length = 0.0
         cells = set()
         for robot in robots_paths:
             total_length += robot.get_path_length()
             cells.update(robot.get_path_cells(self.cell_size))
-        return self.length_weight * total_length + self.num_cells_weight * len(cells)
-
+        return len(cells), -total_length
 
     def new_sample_free(self, robot: Robot):
         """
@@ -170,8 +177,6 @@ class CleanerRobotGA(Solver):
         for i in range(self.num_landmarks):
             p_rand = self.new_sample_free(robot)
             robot_roadmap.add_node(p_rand)
-            if i % 100 == 0 and self.verbose:
-                print('added', i, 'landmarks in PRM', file=self.writer)
 
         self.nearest_neighbors.fit(list(robot_roadmap.nodes))
 
@@ -187,7 +192,6 @@ class CleanerRobotGA(Solver):
         assert nx.algorithms.has_path(robot_roadmap, robot.start, robot.end)
         return robot_roadmap
 
-
     def load_scene(self, scene: Scene):
         super().load_scene(scene)
         self.sampler.set_scene(scene, self._bounding_box)
@@ -198,17 +202,12 @@ class CleanerRobotGA(Solver):
             self.roadmaps[robot] = self.create_robot_roadmap(robot)
 
         self.population = self.get_initial_population()
-        for robots_paths in self.population:
-            print(self.get_fitness(robots_paths))
-
-
 
         # TODO: Evolution loop:
         #   Compute fitness.
         #   Create next Generation:
         #      Reproduction
         #      Crossover + Mutation
-
 
         pass
 
@@ -221,19 +220,9 @@ class CleanerRobotGA(Solver):
         :rtype: :class:`~discopygal.solvers.PathCollection`
         """
         path_collection = PathCollection()
-        # TODO instead of population[0] use the fittest one.
-        for robot_path in self.population[0]:
+        fittest_robot_paths = max(self.population, key=lambda robot_paths: self.get_fitness(robot_paths))
+        for i, robot_path in enumerate(fittest_robot_paths):
+            robot_path.print_summary(self.cell_size, self.writer, i)
             path_collection.add_robot_path(robot_path.robot, Path([PathPoint(point) for point in robot_path.path]))
-        print(path_collection)
-
-        # path_collection = PathCollection()
-        # tensor_path = [[-10, 0, 10, 0], [0, 2, 0, 2], [10, 0, -10, 0]]
-        # for i, robot in enumerate(self.scene.robots):
-        #     points = []
-        #     for point in tensor_path:
-        #         points.append(PathPoint(Point_2(point[2 * i], point[2 * i + 1])))
-        #     path = Path(points)
-        #     path_collection.add_robot_path(robot, path)
 
         return path_collection
-
