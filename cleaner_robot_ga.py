@@ -11,7 +11,7 @@ from discopygal.solvers.nearest_neighbors import NearestNeighbors, NearestNeighb
 from discopygal.bindings import *
 from discopygal.geometry_utils import collision_detection, conversions
 from discopygal.solvers.Solver import Solver
-from typing import Dict
+from typing import Dict, Any
 import random
 from dataclasses import dataclass
 from utils import *
@@ -67,6 +67,17 @@ def get_highest_k_indices(values: list, k: int) -> list[int]:
     return sorted_indices[:k]
 
 
+def random_choices_no_repetitions(population: list[Any], weights: list[float] | np.ndarray, k: int) -> list[Any]:
+    assert len(population) == len(weights)
+    result = []
+    population_indices = list(range(len(population)))
+    for i in range(k):
+        selected_item_idx = random.choices(population=population_indices, weights=weights, k=1)[0]
+        result.append(population[selected_item_idx])
+        weights[selected_item_idx] = 0
+    return result
+
+
 class CleanerRobotGA(Solver):
     """
     The basic implementation of a Probabilistic Road Map (PRM) solver.
@@ -86,6 +97,7 @@ class CleanerRobotGA(Solver):
                  cell_size: float = 1.0, elite_proportion: float = 0.1,
                  cells_length_weights_ratio: float = 0.8,
                  crossover_select_merge_ratio: float = 0.8):
+        assert population_size > 1
         super().__init__(bounding_margin_width_factor)
         self.num_landmarks = num_landmarks
         self.k = k
@@ -161,7 +173,6 @@ class CleanerRobotGA(Solver):
 
     def get_crossover(
             self,
-            population: list[list[RobotPath]],
             fitness_distribution: np.ndarray,
             num_individuals,
             select_merge_ratio: float) -> list[list[RobotPath]]:
@@ -169,13 +180,14 @@ class CleanerRobotGA(Solver):
         for child_idx in range(num_individuals):
             # Create the next child by merging two parents.
             child: list[RobotPath] = []
-            parent_0, parent_1 = random.choices(population, weights=fitness_distribution, k=2)
+            parent_0, parent_1 = random_choices_no_repetitions(self.population, fitness_distribution.copy(), k=2)
             parents_for_crossover = [parent_0, parent_1]
             num_robots = len(parent_0)
             for robot_path_idx in range(num_robots):
                 robot = parent_0[robot_path_idx].robot
                 merged_successfully = False
                 if random.random() >= select_merge_ratio:
+                    # TODO - fix cycles in merge - e.g. choose only different parents or cut sections in repeating points.
                     # Attempt to merge the robot path from the two parents.
                     # For parent 0 we take the path from index 0 to index `parent_0_end_index` that is chosen randomly.
                     parent_0_end_index = random.randint(0, len(parent_0[robot_path_idx].path) - 1)
@@ -275,7 +287,7 @@ class CleanerRobotGA(Solver):
             elite_population = [self.population[i] for i in get_highest_k_indices(fitness_values, self.elite_size)]
 
             fitness_distribution = get_fitness_distribution(fitness_values, self.cells_length_weights_ratio)
-            crossover_population = self.get_crossover(self.population,
+            crossover_population = self.get_crossover(
                                                  fitness_distribution,
                                                  self.population_size - len(elite_population),
                                                  self.crossover_select_merge_ratio)
