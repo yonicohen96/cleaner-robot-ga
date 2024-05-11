@@ -40,7 +40,7 @@ def run_exp(num_iterations=5, num_landmarks=1000, k=15):
                 for iteration in range(num_iterations):
                     print(f"\t\tIteration {iteration + 1}\{num_iterations}")
                     total_time, path_collection = get_time_and_clearance(solver_class, num_landmarks, k, scene)
-                    path_length = get_path_length(path_collection)
+                    path_length = get_path_collection_length(path_collection)
                     times.append(total_time)
                     paths.append(path_length)
 

@@ -13,6 +13,23 @@ from discopygal.geometry_utils import collision_detection, conversions
 from discopygal.solvers.Solver import Solver
 from typing import Dict
 import random
+from dataclasses import dataclass
+from utils import *
+
+
+@dataclass
+class RobotPath:
+    robot: Robot
+    path: list[Point_2]
+
+    def get_path_length(self) -> float:
+        return get_point2_list_length(self.path)
+
+    def get_path_cells(self, cell_size: float) -> set[tuple[int, int]]:
+        cells = set()
+        for point in self.path:
+            cells.add(get_cell_indices(point, cell_size))
+        return cells
 
 
 class CleanerRobotGA(Solver):
@@ -29,11 +46,17 @@ class CleanerRobotGA(Solver):
     """
 
     def __init__(self, num_landmarks, k, bounding_margin_width_factor=Solver.DEFAULT_BOUNDS_MARGIN_FACTOR,
-                 population_size: int = 10):
+                 population_size: int = 10, evolution_steps: int = 100,
+                 length_weight: float = 1.0, num_cells_weight: float = 1.0,
+                 cell_size: float = 1.0):
         super().__init__(bounding_margin_width_factor)
         self.num_landmarks = num_landmarks
         self.k = k
         self.population_size = population_size
+        self.evolution_steps = evolution_steps
+        self.length_weight = length_weight
+        self.num_cells_weight = num_cells_weight
+        self.cell_size = cell_size
 
         self.nearest_neighbors = NearestNeighbors_sklearn()
 
@@ -100,8 +123,9 @@ class CleanerRobotGA(Solver):
         pass
         # path = Path([PathPoint(point) for point in path_start[:-1]] + [PathPoint(point) for point in path_end])
 
-    def get_random_individual(self) -> Dict[Robot, list]:
-        individual = {}
+    def get_random_robots_paths(self) -> list[RobotPath]:
+        # TODO: Consider starting with the shortest path for each robot without the middle point.
+        robots_paths = []
         for robot in self.scene.robots:
             robot_roadmap = self.roadmaps[robot]
             random_point = random.choice(list(robot_roadmap.nodes()))
@@ -110,14 +134,23 @@ class CleanerRobotGA(Solver):
                 random_point = random.choice(list(robot_roadmap.nodes()))
             path_start = nx.algorithms.shortest_path(robot_roadmap, robot.start, random_point, weight='weight')
             path_end = nx.algorithms.shortest_path(robot_roadmap, random_point, robot.end, weight='weight')
-            individual[robot] = list(path_start)[:-1] + list(path_end)
-        return individual
+            robots_paths.append(RobotPath(robot=robot, path=list(path_start)[:-1] + list(path_end)))
+        return robots_paths
 
-    def get_initial_population(self) -> list[Dict[Robot, list]]:
+    def get_initial_population(self) -> list[list[RobotPath]]:
         population = []
         for i in range(self.population_size):
-            population.append(self.get_random_individual())
+            population.append(self.get_random_robots_paths())
         return population
+
+    def get_fitness(self, robots_paths: list[RobotPath]) -> float:
+        total_length = 0.0
+        cells = set()
+        for robot in robots_paths:
+            total_length += robot.get_path_length()
+            cells.update(robot.get_path_cells(self.cell_size))
+        return self.length_weight * total_length + self.num_cells_weight * len(cells)
+
 
     def new_sample_free(self, robot: Robot):
         """
@@ -165,10 +198,10 @@ class CleanerRobotGA(Solver):
             self.roadmaps[robot] = self.create_robot_roadmap(robot)
 
         self.population = self.get_initial_population()
+        for robots_paths in self.population:
+            print(self.get_fitness(robots_paths))
 
-        # TODO: Generate initial population - for each robot choose a random point and find shortest path...
 
-        # TODO: Generate Initial population.
 
         # TODO: Evolution loop:
         #   Compute fitness.
@@ -189,8 +222,8 @@ class CleanerRobotGA(Solver):
         """
         path_collection = PathCollection()
         # TODO instead of population[0] use the fittest one.
-        for robot, robot_path in self.population[0].items():
-            path_collection.add_robot_path(robot, Path([PathPoint(point) for point in robot_path]))
+        for robot_path in self.population[0]:
+            path_collection.add_robot_path(robot_path.robot, Path([PathPoint(point) for point in robot_path.path]))
         print(path_collection)
 
         # path_collection = PathCollection()
@@ -203,3 +236,4 @@ class CleanerRobotGA(Solver):
         #     path_collection.add_robot_path(robot, path)
 
         return path_collection
+

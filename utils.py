@@ -3,13 +3,23 @@ from discopygal.solvers.metrics import Metric_Euclidean
 import multiprocessing
 import time
 from typing import Callable
+import numpy as np
+from discopygal.bindings import Point_2
 
 
-def get_path_length(path_collection: PathCollection) -> float:
+def get_point2_list_length(points: list[Point_2]) -> float:
     length = 0.0
+    metric = Metric_Euclidean()
+    for i in range(len(points) - 1):
+        length += metric.dist(points[i], points[i + 1]).to_double()
+    return length
+
+
+def get_path_collection_length(path_collection: PathCollection) -> float:
+    length = 0.0
+    metric = Metric_Euclidean()
     for path in list(path_collection.paths.values()):
         points = path.points
-        metric = Metric_Euclidean()
         length = 0.0
         for i in range(len(points) - 1):
             length += metric.dist(points[i].location, points[i + 1].location).to_double()
@@ -34,3 +44,15 @@ def timeout_function(timeout: int, function: Callable, *args, **kwargs):
         # p.kill()
 
         p.join()
+
+
+def get_coord_index(coord: float, division_factor: float):
+    return np.floor(coord / division_factor)
+
+
+def get_cell_indices(point: Point_2, division_factor: float) -> tuple[int, int]:
+    return (int(get_coord_index(point.x().to_double(), division_factor)),
+            int(get_coord_index(point.y().to_double(), division_factor)))
+
+
+
