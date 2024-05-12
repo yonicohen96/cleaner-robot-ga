@@ -57,6 +57,7 @@ def get_fitness_distribution(fitness_values: list[FitnessValue], cell_num_length
     cell_num_logits = [fitness_value.cells_num for fitness_value in fitness_values]
     # The lower the length is, the highest probability it should get and therefore we use `-fitness_value.length`.
     length_logits = [-fitness_value.length for fitness_value in fitness_values]
+    # TODO change softmax so simple normalization.
     cell_num_distribution = special.softmax(cell_num_logits)
     length_distribution = special.softmax(length_logits)
     return cell_num_length_ratio * cell_num_distribution + (1 - cell_num_length_ratio) * length_distribution
@@ -65,6 +66,27 @@ def get_fitness_distribution(fitness_values: list[FitnessValue], cell_num_length
 def get_highest_k_indices(values: list, k: int) -> list[int]:
     sorted_indices = sorted(range(len(values)), key=lambda i: values[i], reverse=True)
     return sorted_indices[:k]
+
+
+# TODO: delete if we don't use it.
+def merge(parent_0: list[RobotPath], parent_1: list[RobotPath], robot_path_idx: int, robot: Robot, cell_size: float,
+          roadmaps: dict[Robot, nx.Graph]) -> RobotPath:
+    parent_0_end_index = random.randint(0, len(parent_0[robot_path_idx].path) - 1)
+    parent_1_start_index = random.randint(0, len(parent_1[robot_path_idx].path) - 1)
+    parent_0_end_point = parent_0[robot_path_idx].path[parent_0_end_index]
+    parent_1_start_point = parent_1[robot_path_idx].path[parent_1_start_index]
+
+    if nx.algorithms.has_path(roadmaps[robot], parent_0_end_point,
+                              parent_1_start_point):
+        path_start = parent_0[robot_path_idx].path[:parent_0_end_index]
+        path_middle = list(nx.algorithms.shortest_path(roadmaps[robot], parent_0_end_point,
+                                                       parent_1_start_point, weight='weight'))
+        path_end = parent_1[robot_path_idx].path[parent_1_start_index:]
+        merged_robot_path = RobotPath(
+            robot=robot,
+            path=path_start + path_middle[:-1] + path_end,
+            cell_size=cell_size)
+        return merged_robot_path
 
 
 def random_choices_no_repetitions(population: list[Any], weights: list[float] | np.ndarray, k: int) -> list[Any]:
@@ -96,7 +118,7 @@ class CleanerRobotGA(Solver):
                  length_weight: float = 1.0, num_cells_weight: float = 1.0,
                  cell_size: float = 1.0, elite_proportion: float = 0.1,
                  cells_length_weights_ratio: float = 0.8,
-                 crossover_select_merge_ratio: float = 0.8):
+                 mutation_rate: float = 0.3):
         assert population_size > 1
         super().__init__(bounding_margin_width_factor)
         self.num_landmarks = num_landmarks
@@ -107,7 +129,7 @@ class CleanerRobotGA(Solver):
         self.num_cells_weight = num_cells_weight
         self.cell_size = cell_size
         self.cells_length_weights_ratio = cells_length_weights_ratio
-        self.crossover_select_merge_ratio = crossover_select_merge_ratio
+        self.mutation_rate = mutation_rate
 
         self.nearest_neighbors = NearestNeighbors_sklearn()
 
@@ -171,11 +193,7 @@ class CleanerRobotGA(Solver):
             return False
         return True
 
-    def get_crossover(
-            self,
-            fitness_distribution: np.ndarray,
-            num_individuals,
-            select_merge_ratio: float) -> list[list[RobotPath]]:
+    def crossover(self, fitness_distribution: np.ndarray, num_individuals) -> list[list[RobotPath]]:
         crossovers = []
         for child_idx in range(num_individuals):
             # Create the next child by merging two parents.
@@ -184,37 +202,44 @@ class CleanerRobotGA(Solver):
             parents_for_crossover = [parent_0, parent_1]
             num_robots = len(parent_0)
             for robot_path_idx in range(num_robots):
-                robot = parent_0[robot_path_idx].robot
-                merged_successfully = False
-                if random.random() >= select_merge_ratio:
-                    # TODO - fix cycles in merge - e.g. choose only different parents or cut sections in repeating points.
-                    # Attempt to merge the robot path from the two parents.
-                    # For parent 0 we take the path from index 0 to index `parent_0_end_index` that is chosen randomly.
-                    parent_0_end_index = random.randint(0, len(parent_0[robot_path_idx].path) - 1)
-                    parent_1_start_index = random.randint(0, len(parent_1[robot_path_idx].path) - 1)
-                    parent_0_end_point = parent_0[robot_path_idx].path[parent_0_end_index]
-                    parent_1_start_point = parent_1[robot_path_idx].path[parent_1_start_index]
-
-                    if nx.algorithms.has_path(self.roadmaps[robot], parent_0_end_point,
-                                              parent_1_start_point):
-                        path_start = parent_0[robot_path_idx].path[:parent_0_end_index]
-                        path_middle = list(nx.algorithms.shortest_path(self.roadmaps[robot], parent_0_end_point,
-                                                                       parent_1_start_point, weight='weight'))
-                        path_end = parent_1[robot_path_idx].path[parent_1_start_index:]
-                        merged_robot_path = RobotPath(
-                            robot=robot,
-                            path=path_start + path_middle[:-1] + path_end,
-                            cell_size=self.cell_size)
-                        child.append(merged_robot_path)
-                        merged_successfully = True
-                if not merged_successfully:
-                    # Here we choose the selection strategy for children's robot-path, i.e. we randomly select a parent
-                    # and copy its entire robot path.
-                    selected_parent = parents_for_crossover[random.randint(0, 1)]
-                    child.append(selected_parent[robot_path_idx])
-
+                selected_parent = parents_for_crossover[random.randint(0, 1)]
+                child.append(selected_parent[robot_path_idx])
             crossovers.append(child)
         return crossovers
+
+    def mutate(self, crossovers: list[list[RobotPath]]) -> list[list[RobotPath]]:
+        mutated_crossovers: list[list[RobotPath]] = []
+        for robots_paths in crossovers:
+            mutated_robots_paths: list[RobotPath] = []
+            for robot_path in robots_paths:
+                if random.random() <= self.mutation_rate:
+                    mutated_robots_paths.append(self.add_point_to_robot_path(robot_path))
+                else:
+                    mutated_robots_paths.append(robot_path)
+            mutated_crossovers.append(mutated_robots_paths)
+        return mutated_crossovers
+
+
+
+    def add_point_to_robot_path(self, robot_path: RobotPath) -> RobotPath:
+        robot = robot_path.robot
+        robot_roadmap = self.roadmaps[robot]
+        orig_path = robot_path.path
+        new_path = []
+        while True:
+            random_point = random.choice(list(robot_roadmap.nodes()))
+            prev_node_idx = random.randint(0, len(orig_path) - 2)
+            next_node_idx = random.randint(prev_node_idx + 1, len(orig_path) - 1)
+            if not nx.algorithms.has_path(
+                    robot_roadmap, orig_path[prev_node_idx], random_point) or not nx.algorithms.has_path(
+                robot_roadmap, random_point, orig_path[next_node_idx]):
+                continue
+            path_to_random = list(nx.algorithms.shortest_path(robot_roadmap, orig_path[prev_node_idx], random_point, weight='weight'))
+            path_from_random = list(nx.algorithms.shortest_path(robot_roadmap, random_point, orig_path[next_node_idx], weight='weight'))
+            new_path = orig_path[:prev_node_idx] + path_to_random[:-1] + path_from_random[:-1] + orig_path[next_node_idx:]
+            break
+        return RobotPath(robot=robot, path=new_path, cell_size=self.cell_size)
+
 
     def get_random_robots_paths(self) -> list[RobotPath]:
         # TODO: Consider starting with the shortest path for each robot without the middle point.
@@ -287,14 +312,10 @@ class CleanerRobotGA(Solver):
             elite_population = [self.population[i] for i in get_highest_k_indices(fitness_values, self.elite_size)]
 
             fitness_distribution = get_fitness_distribution(fitness_values, self.cells_length_weights_ratio)
-            crossover_population = self.get_crossover(
-                                                 fitness_distribution,
-                                                 self.population_size - len(elite_population),
-                                                 self.crossover_select_merge_ratio)
+            crossover_population = self.crossover(fitness_distribution, self.population_size - len(elite_population))
+            mutated_crossover_population = self.mutate(crossover_population)
 
-            # TODO mutate.
-
-            self.population = elite_population + crossover_population
+            self.population = elite_population + mutated_crossover_population
 
     def solve(self):
         """
