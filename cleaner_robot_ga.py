@@ -1,15 +1,12 @@
 import networkx as nx
-import matplotlib.pyplot as plt
-from scipy import special
-from discopygal.solvers import Robot, RobotDisc, RobotPolygon, RobotRod
-from discopygal.solvers import Obstacle, ObstacleDisc, ObstaclePolygon, Scene
-from discopygal.solvers import PathPoint, Path, PathCollection
+from discopygal.solvers import Robot
+from discopygal.solvers import Scene
+from discopygal.solvers import PathPoint, Path
 
-from discopygal.solvers.samplers import Sampler, Sampler_Uniform
-from discopygal.solvers.metrics import Metric, Metric_Euclidean
-from discopygal.solvers.nearest_neighbors import NearestNeighbors, NearestNeighbors_sklearn
+from discopygal.solvers.samplers import Sampler_Uniform
+from discopygal.solvers.nearest_neighbors import NearestNeighbors_sklearn
 from discopygal.bindings import *
-from discopygal.geometry_utils import collision_detection, conversions
+from discopygal.geometry_utils import collision_detection
 from discopygal.solvers.Solver import Solver
 from typing import Dict, Any
 import random
@@ -136,36 +133,34 @@ class CleanerRobotGA(Solver):
 
     """
 
-    def __init__(self, num_landmarks, k, bounding_margin_width_factor=Solver.DEFAULT_BOUNDS_MARGIN_FACTOR,
+    def __init__(self, num_landmarks=1000, k=15, bounding_margin_width_factor=Solver.DEFAULT_BOUNDS_MARGIN_FACTOR,
                  population_size: int = 10, evolution_steps: int = 20,
-                 length_weight: float = 1.0, num_cells_weight: float = 1.0,
                  cell_size: float = 1.0, elite_proportion: float = 0.1,
                  cells_length_weights_ratio: float = 0.8,
                  mutation_rate: float = 0.3):
         assert population_size > 1
         super().__init__(bounding_margin_width_factor)
+        # Roadmaps creation attributes
+        self.nearest_neighbors = NearestNeighbors_sklearn()
+        self.metric = Metric_Euclidean
+        self.sampler = Sampler_Uniform()
         self.num_landmarks = num_landmarks
         self.k = k
+
+        # Genetic algorithm attributes.
         self.population_size = population_size
         self.evolution_steps = evolution_steps
-        self.length_weight = length_weight
-        self.num_cells_weight = num_cells_weight
         self.cell_size = cell_size
+        self.elite_proportion = elite_proportion
+        self.elite_size = int(elite_proportion * self.population_size)
         self.cells_length_weights_ratio = cells_length_weights_ratio
         self.mutation_rate = mutation_rate
 
-        self.nearest_neighbors = NearestNeighbors_sklearn()
-
-        self.metric = Metric_Euclidean
-        self.sampler = Sampler_Uniform()
-
+        # Datastructures initializations
         self.roadmap = None
         self.roadmaps: Dict[Robot, nx.Graph] = {}
         self.collision_detection = {}
-        self.start = None
-        self.end = None
         self.population: list[list[RobotPath]] = []
-        self.elite_size = int(elite_proportion * self.population_size)
 
     @staticmethod
     def get_arguments():
@@ -182,6 +177,14 @@ class CleanerRobotGA(Solver):
             'k': ('K for nearest neighbors:', 15, int),
             'bounding_margin_width_factor': (
                 'Margin width factor (for bounding box):', Solver.DEFAULT_BOUNDS_MARGIN_FACTOR, FT),
+            'population_size': ('population size:',  10,  int),
+            'evolution_steps': ('evolution steps:',  20,  int),
+            'cell_size': ('cell size:',  1.0,  float),
+            'elite_proportion': ('elite proportion:',  0.1,  float),
+            'cells_length_weights_ratio': ('cells length weights ratio:',  0.8,  float),
+            'mutation_rate': ('mutation rate:',  0.3,  float),
+
+
         }
 
     @staticmethod
@@ -193,7 +196,16 @@ class CleanerRobotGA(Solver):
         :param d: arguments dict
         :type d: :class:`dict`
         """
-        return CleanerRobotGA(d['num_landmarks'], d['k'], FT(d['bounding_margin_width_factor']))
+        return CleanerRobotGA(d['num_landmarks'],
+                              d['k'],
+                              FT(d['bounding_margin_width_factor']),
+                              d['population_size'],
+                              d['evolution_steps'],
+                              d['cell_size'],
+                              d['elite_proportion'],
+                              d['cells_length_weights_ratio'],
+                              d['mutation_rate'],
+                              )
 
     def get_graph(self):
         """
@@ -326,6 +338,7 @@ class CleanerRobotGA(Solver):
         self.population = self.get_initial_population()
 
         # Evolution steps.
+        print(f'Evolution steps...', file=self.writer)
         for step in range(self.evolution_steps):
             print(f'\tevolution step {step + 1}/{self.evolution_steps}', file=self.writer)
 
@@ -350,9 +363,10 @@ class CleanerRobotGA(Solver):
         :return: path collection of motion planning
         :rtype: :class:`~discopygal.solvers.PathCollection`
         """
+        print(f'Fetching best individual...', file=self.writer)
         path_collection = PathCollection()
         fittest_robot_paths = max(self.population, key=lambda robot_paths: get_fitness(robot_paths))
         for i, robot_path in enumerate(fittest_robot_paths):
             path_collection.add_robot_path(robot_path.robot, Path([PathPoint(point) for point in robot_path.path]))
-
+        print(f'Successfully found paths.', file=self.writer)
         return path_collection
