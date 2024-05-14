@@ -53,14 +53,34 @@ def get_fitness(robots_paths: list[RobotPath]) -> FitnessValue:
     return FitnessValue(len(cells), total_length)
 
 
-def get_fitness_distribution(fitness_values: list[FitnessValue], cell_num_length_ratio: float):
-    cell_num_logits = [fitness_value.cells_num for fitness_value in fitness_values]
-    # The lower the length is, the highest probability it should get and therefore we use `-fitness_value.length`.
-    length_logits = [-fitness_value.length for fitness_value in fitness_values]
-    # TODO change softmax so simple normalization.
-    cell_num_distribution = special.softmax(cell_num_logits)
-    length_distribution = special.softmax(length_logits)
-    return cell_num_length_ratio * cell_num_distribution + (1 - cell_num_length_ratio) * length_distribution
+def get_distribution(arr: np.ndarray, opposite_values=False) -> np.ndarray:
+    """
+    Given an array with non-negative values, derive a distribution which is proportional to the valeus of the array
+    after shifting them so that the minimum value is 0.
+    :param arr: The array with the non-negative values.
+    :param opposite_values: Whether a smaller value in arr should get a higher probability.
+    :return: The derived distribution.
+    """
+    scores = arr.max() - arr if opposite_values else arr - arr.min()
+    if scores.max() == scores.min():
+        return np.full(scores.size, 1 / scores.size)
+    return scores / scores.sum()
+
+
+def get_fitness_distribution(fitness_values: list[FitnessValue], cell_num_length_ratio: float) -> np.ndarray:
+    """
+    Return a distribution over list of fitness values. A FitnessValue with a higher cells number and lower length
+    will get a higher distribution.
+    :param fitness_values: A list of fitness values.
+    :param cell_num_length_ratio: A weighting term for the output distribution that determines. A higher value will give
+    a higher weight for the cells number and a lower weight for the legnth and vice versa.
+    :return: The derived distribution.
+    """
+    cells_num_distribution = get_distribution(np.array([fitness_value.cells_num for fitness_value in fitness_values]),
+                                              opposite_values=False)
+    length_distribution = get_distribution(np.array([fitness_value.length for fitness_value in fitness_values]),
+                                           opposite_values=True)
+    return cell_num_length_ratio * cells_num_distribution + (1 - cell_num_length_ratio) * length_distribution
 
 
 def get_highest_k_indices(values: list, k: int) -> list[int]:
