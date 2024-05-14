@@ -1,4 +1,5 @@
 import networkx as nx
+import numpy as np
 from discopygal.solvers import Robot
 from discopygal.solvers import Scene
 from discopygal.solvers import PathPoint, Path
@@ -80,7 +81,7 @@ def get_fitness_distribution(fitness_values: list[FitnessValue], cell_num_length
     return cell_num_length_ratio * cells_num_distribution + (1 - cell_num_length_ratio) * length_distribution
 
 
-def get_highest_k_indices(values: list, k: int) -> list[int]:
+def get_highest_k_indices(values: list | np.ndarray, k: int) -> list[int]:
     sorted_indices = sorted(range(len(values)), key=lambda i: values[i], reverse=True)
     return sorted_indices[:k]
 
@@ -222,7 +223,7 @@ class CleanerRobotGA(Solver):
         Get two points in the configuration space and decide if they can be connected
         """
 
-        # Check validity of each edge seperately
+        # Check validity of each edge separately
         edge = Segment_2(p1, p2)
         if not self.collision_detection[robot].is_edge_valid(edge):
             return False
@@ -343,13 +344,13 @@ class CleanerRobotGA(Solver):
             print(f'\tevolution step {step + 1}/{self.evolution_steps}', file=self.writer)
 
             # Compute fitness value.
-            fitness_values = [get_fitness(robot_path) for robot_path in self.population]
+            fitness_values = [get_fitness(robots_paths) for robots_paths in self.population]
+            fitness_distribution = get_fitness_distribution(fitness_values, self.cells_length_weights_ratio)
 
             # Get elite population.
-            elite_population = [self.population[i] for i in get_highest_k_indices(fitness_values, self.elite_size)]
+            elite_population = [self.population[i] for i in get_highest_k_indices(fitness_distribution, self.elite_size)]
 
             # Apply crossover and mutation operators.
-            fitness_distribution = get_fitness_distribution(fitness_values, self.cells_length_weights_ratio)
             crossover_population = self.crossover(fitness_distribution, self.population_size - len(elite_population))
             mutated_crossover_population = self.mutate(crossover_population)
 
