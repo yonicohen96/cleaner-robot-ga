@@ -17,12 +17,8 @@ def get_point2_list_length(points: list[Point_2]) -> float:
 
 def get_path_collection_length(path_collection: PathCollection) -> float:
     length = 0.0
-    metric = Metric_Euclidean()
     for path in list(path_collection.paths.values()):
-        points = path.points
-        length = 0.0
-        for i in range(len(points) - 1):
-            length += metric.dist(points[i].location, points[i + 1].location).to_double()
+        length += get_point2_list_length([point.location for point in path.points])
     return length
 
 

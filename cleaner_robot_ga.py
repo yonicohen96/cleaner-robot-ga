@@ -53,7 +53,7 @@ def get_fitness(robots_paths: list[RobotPath]) -> FitnessValue:
 
 def get_distribution(arr: np.ndarray, opposite_values=False) -> np.ndarray:
     """
-    Given an array with non-negative values, derive a distribution which is proportional to the valeus of the array
+    Given an array with non-negative values, derive a distribution which is proportional to the values of the array
     after shifting them so that the minimum value is 0.
     :param arr: The array with the non-negative values.
     :param opposite_values: Whether a smaller value in arr should get a higher probability.
@@ -138,8 +138,10 @@ class CleanerRobotGA(Solver):
                  population_size: int = 10, evolution_steps: int = 20,
                  cell_size: float = 1.0, elite_proportion: float = 0.1,
                  cells_length_weights_ratio: float = 0.8,
-                 mutation_rate: float = 0.3):
+                 mutation_rate: float = 0.3,
+                 verbose: bool = True):
         assert population_size > 1
+        assert population_size > int(elite_proportion * population_size)
         super().__init__(bounding_margin_width_factor)
         # Roadmaps creation attributes
         self.nearest_neighbors = NearestNeighbors_sklearn()
@@ -163,6 +165,9 @@ class CleanerRobotGA(Solver):
         self.collision_detection = {}
         self.population: list[list[RobotPath]] = []
 
+        # Print
+        self.verbose = verbose
+
     @staticmethod
     def get_arguments():
         """
@@ -184,6 +189,7 @@ class CleanerRobotGA(Solver):
             'elite_proportion': ('elite proportion:',  0.1,  float),
             'cells_length_weights_ratio': ('cells length weights ratio:',  0.8,  float),
             'mutation_rate': ('mutation rate:',  0.3,  float),
+            'verbose': ('verbose:', True, bool),
 
 
         }
@@ -206,6 +212,7 @@ class CleanerRobotGA(Solver):
                               d['elite_proportion'],
                               d['cells_length_weights_ratio'],
                               d['mutation_rate'],
+                              d['verbose'],
                               )
 
     def get_graph(self):
@@ -324,24 +331,29 @@ class CleanerRobotGA(Solver):
         assert nx.algorithms.has_path(robot_roadmap, robot.start, robot.end)
         return robot_roadmap
 
+    def print(self, to_print: str, *args, **kwargs):
+        if not self.verbose:
+            return
+        print(to_print, *args, **kwargs, file=self.writer)
+
     def load_scene(self, scene: Scene):
         super().load_scene(scene)
         self.sampler.set_scene(scene, self._bounding_box)
 
         # Build collision detection and roadmap for each robot.
-        print(f'Creating robot roadmaps...', file=self.writer)
+        self.print(f'Creating robot roadmaps...', file=self.writer)
         for robot in scene.robots:
             self.collision_detection[robot] = collision_detection.ObjectCollisionDetection(scene.obstacles, robot)
             self.roadmaps[robot] = self.create_robot_roadmap(robot)
 
         # Get random initial population.
-        print(f'Creating initial population...', file=self.writer)
+        self.print(f'Creating initial population...', file=self.writer)
         self.population = self.get_initial_population()
 
         # Evolution steps.
-        print(f'Evolution steps...', file=self.writer)
+        self.print(f'Evolution steps...', file=self.writer)
         for step in range(self.evolution_steps):
-            print(f'\tevolution step {step + 1}/{self.evolution_steps}', file=self.writer)
+            self.print(f'\tevolution step {step + 1}/{self.evolution_steps}', file=self.writer)
 
             # Compute fitness value.
             fitness_values = [get_fitness(robots_paths) for robots_paths in self.population]
@@ -351,7 +363,7 @@ class CleanerRobotGA(Solver):
             elite_population = [self.population[i] for i in get_highest_k_indices(fitness_distribution, self.elite_size)]
 
             # Apply crossover and mutation operators.
-            crossover_population = self.crossover(fitness_distribution, self.population_size - len(elite_population))
+            crossover_population = self.crossover(fitness_distribution, self.population_size - self.elite_size)
             mutated_crossover_population = self.mutate(crossover_population)
 
             self.population = elite_population + mutated_crossover_population
@@ -364,10 +376,10 @@ class CleanerRobotGA(Solver):
         :return: path collection of motion planning
         :rtype: :class:`~discopygal.solvers.PathCollection`
         """
-        print(f'Fetching best individual...', file=self.writer)
+        self.print(f'Fetching best individual...', file=self.writer)
         path_collection = PathCollection()
         fittest_robot_paths = max(self.population, key=lambda robot_paths: get_fitness(robot_paths))
         for i, robot_path in enumerate(fittest_robot_paths):
             path_collection.add_robot_path(robot_path.robot, Path([PathPoint(point) for point in robot_path.path]))
-        print(f'Successfully found paths.', file=self.writer)
+        self.print(f'Successfully found paths.', file=self.writer)
         return path_collection
