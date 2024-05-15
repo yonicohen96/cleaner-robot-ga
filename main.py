@@ -105,13 +105,13 @@ def get_coef(filename):
 
     # Step 2: Separate the features (A, B, C) and the target variable (D)
     X = data[[
-                'iteration_number',
-                'population_size',
-                'evolution_steps',
-                'cell_size',
-                'elite_proportion',
-                'cells_length_weights_ratio',
-                'mutation_rate']]
+        'iteration_number',
+        'population_size',
+        'evolution_steps',
+        'cell_size',
+        'elite_proportion',
+        'cells_length_weights_ratio',
+        'mutation_rate']]
     y = data['avg_fitness_values']
 
     # Step 3: Split the data into training and testing sets
@@ -135,6 +135,7 @@ def get_coef(filename):
     print(f'Coefficients: {model.coef_}')
     print(f'Intercept: {model.intercept_}')
 
+
 def get_correlation():
     import pandas as pd
 
@@ -143,15 +144,15 @@ def get_correlation():
 
     # Step 2: Separate the features (A, B, C) and the target variable (D)
     X = data[[
-                'iteration_number',
-                'population_size',
-                'evolution_steps',
-                'cell_size',
-                'elite_proportion',
-                'cells_length_weights_ratio',
-                'mutation_rate',
-                'avg_time',
-                'fitness_values',
+        'iteration_number',
+        'population_size',
+        'evolution_steps',
+        'cell_size',
+        'elite_proportion',
+        'cells_length_weights_ratio',
+        'mutation_rate',
+        'avg_time',
+        'fitness_values',
     ]]
     print(X.corr().to_csv("out/correlation.csv"))
 
@@ -169,6 +170,6 @@ def single_debug_experiment():
     }
     run_exp(hyperparams, save=False, verbose=True)
 
+
 if __name__ == '__main__':
     single_debug_experiment()
-

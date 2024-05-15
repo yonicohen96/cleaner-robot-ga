@@ -75,6 +75,7 @@ def merge(parent_0: list[RobotPath], parent_1: list[RobotPath], robot_path_idx: 
 
 def random_choices_no_repetitions(population: list[Any], weights: list[float] | np.ndarray, k: int) -> list[Any]:
     assert len(population) == len(weights)
+    assert len([weight for weight in weights if weight > 0]) >= k
     weights = weights.copy()
     result = []
     population_indices = list(range(len(population)))
@@ -82,8 +83,6 @@ def random_choices_no_repetitions(population: list[Any], weights: list[float] | 
         selected_item_idx = random.choices(population=population_indices, weights=weights, k=1)[0]
         result.append(population[selected_item_idx])
         weights[selected_item_idx] = 0
-        if sum(weights) == 0:
-            weights = [1 / len(weights)] * len(weights)
     return result
 
 
@@ -121,7 +120,7 @@ class CleanerRobotGA(Solver):
                  elite_proportion: float = 0.1,
                  cells_length_weights_ratio: float = 0.8,
                  mutation_rate: float = 0.3,
-                 cell_size_jump_size_ratio: float = 0.1,
+                 cell_size_decrease_interval: int = 5,
                  verbose: bool = True):
         assert population_size > 1
         # Check that elite population is not the entire population.
@@ -143,7 +142,7 @@ class CleanerRobotGA(Solver):
         self.elite_size = int(elite_proportion * self.population_size)
         self.cells_length_weights_ratio = cells_length_weights_ratio
         self.mutation_rate = mutation_rate
-        self.cell_size_jump_size_ratio = cell_size_jump_size_ratio
+        self.cell_size_decrease_interval = cell_size_decrease_interval
         self.cell_size = None
 
         # Datastructures initializations
@@ -169,13 +168,13 @@ class CleanerRobotGA(Solver):
             'k': ('K for nearest neighbors:', 15, int),
             'bounding_margin_width_factor': (
                 'Margin width factor (for bounding box):', Solver.DEFAULT_BOUNDS_MARGIN_FACTOR, FT),
-            'population_size': ('population size:',  10,  int),
-            'evolution_steps': ('evolution steps:',  20,  int),
-            'min_cell_size': ('min cell size:',  1.0,  float),
-            'elite_proportion': ('elite proportion:',  0.1,  float),
-            'cells_length_weights_ratio': ('cells length weights ratio:',  0.8,  float),
-            'mutation_rate': ('mutation rate:',  0.3,  float),
-            'cell_size_jump_size_ratio': ('cell_size_jump_size_ratio', 0.1, float),
+            'population_size': ('population size:', 10, int),
+            'evolution_steps': ('evolution steps:', 20, int),
+            'min_cell_size': ('min cell size:', 1.0, float),
+            'elite_proportion': ('elite proportion:', 0.1, float),
+            'cells_length_weights_ratio': ('cells length weights ratio:', 0.8, float),
+            'mutation_rate': ('mutation rate:', 0.3, float),
+            'cell_size_decrease_interval': ('cell_size_decrease_interval', 5, int),
             'verbose': ('verbose:', True, bool),
         }
 
@@ -197,7 +196,7 @@ class CleanerRobotGA(Solver):
                               d['elite_proportion'],
                               d['cells_length_weights_ratio'],
                               d['mutation_rate'],
-                              d['cell_size_jump_size_ratio'],
+                              d['cell_size_decrease_interval'],
                               d['verbose'],
                               )
 
@@ -273,6 +272,7 @@ class CleanerRobotGA(Solver):
     def get_random_robots_paths(self) -> list[RobotPath]:
         robots_paths = []
         for robot in self.scene.robots:
+            # Create a initial path for the robot by connecting its start point, a random point and its end point.
             robot_roadmap = self.roadmaps[robot]
             random_point = random.choice(list(robot_roadmap.nodes()))
             while not nx.algorithms.has_path(robot_roadmap, robot.start, random_point) or not nx.algorithms.has_path(
@@ -339,7 +339,7 @@ class CleanerRobotGA(Solver):
 
     def get_number_of_cells(self) -> int:
         bounding_box = self.calc_bounding_box()
-        return math.ceil((bounding_box.max_x.to_double() - bounding_box.min_x.to_double()) / self.cell_size) *\
+        return math.ceil((bounding_box.max_x.to_double() - bounding_box.min_x.to_double()) / self.cell_size) * \
             math.ceil((bounding_box.max_y.to_double() - bounding_box.min_y.to_double()) / self.cell_size)
 
     def load_scene(self, scene: Scene):
@@ -359,31 +359,35 @@ class CleanerRobotGA(Solver):
 
         # Evolution steps.
         self.print(f'Evolution steps...')
-        max_steps_without_progress = 5
         steps_without_progress = 0
         best_fitness_value = 0
         for step in range(self.evolution_steps):
             self.print(f'\tevolution step {step + 1}/{self.evolution_steps}')
+
+            # In the last `self.cell_size_decrease_interval` steps, change the cell size to min_cell_size: the final
+            # fitness value is computed with respect to cell size of self.min_cell_size, so in the last iteration we
+            # should perform evolution with the target of maximizing the final fitness function.
+            if step >= self.evolution_steps - self.cell_size_decrease_interval:
+                self.updated_cell_size(self.min_cell_size)
+
             # Compute fitness value.
             fitness_values = [get_fitness(robots_paths) for robots_paths in self.population]
 
+            # If there is no improvement for `self.cell_size_decrease_interval` steps, decrease cell_size.
             if self.cell_size >= self.min_cell_size * 2 and max(fitness_values) == best_fitness_value:
                 steps_without_progress += 1
-                if steps_without_progress > max_steps_without_progress:
-
+                if steps_without_progress > self.cell_size_decrease_interval:
                     steps_without_progress = 0
                     self.updated_cell_size(self.cell_size / 2)
-                    self.print("\t\t################# updated cell size to: ", self.cell_size)
-                    self.print("\t\t################# number of cells: ", self.get_number_of_cells())
                     fitness_values = [get_fitness(robots_paths) for robots_paths in self.population]
-            self.print(f"\t\t{fitness_values=}")
-            self.print("\t\t max fitness value: ", max(fitness_values))
+            self.print("\tmax fitness value: ", max(fitness_values))
 
             best_fitness_value = max(fitness_values)
             fitness_distribution = get_distribution(np.array(fitness_values))
 
             # Get elite population.
-            elite_population = [self.population[i] for i in get_highest_k_indices(fitness_distribution, self.elite_size)]
+            elite_population = [self.population[i] for i in
+                                get_highest_k_indices(fitness_distribution, self.elite_size)]
 
             # Apply crossover and mutation operators.
             crossover_population = self.crossover(fitness_distribution, self.population_size - self.elite_size)
@@ -400,14 +404,10 @@ class CleanerRobotGA(Solver):
         :rtype: :class:`~discopygal.solvers.PathCollection`
         """
         self.print(f'Fetching best individual...')
-        self.updated_cell_size(self.min_cell_size)
         path_collection = PathCollection()
         fittest_robot_paths = max(self.population, key=lambda robot_paths: get_fitness(robot_paths))
-        self.print(f"\t\t{get_fitness(fittest_robot_paths)=}")
-        for i, robot_path in enumerate(fittest_robot_paths):
-            self.print(f"{robot_path.cells=}")
-            path_collection.add_robot_path(robot_path.robot, Path([PathPoint(point) for point in robot_path.path]))
-
-        self.print(f'Successfully found paths.')
         self.print(f"number of cells: {self.get_number_of_cells()}")
+        self.print(f"chosen individual fitness: {get_fitness(fittest_robot_paths)}")
+        for i, robot_path in enumerate(fittest_robot_paths):
+            path_collection.add_robot_path(robot_path.robot, Path([PathPoint(point) for point in robot_path.path]))
         return path_collection
