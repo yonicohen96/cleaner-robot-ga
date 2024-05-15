@@ -11,7 +11,7 @@ SCENE_FILENAME_OPTION = 'scene_filename'
 ITERATION_NUMBER_OPTION = 'iteration_number'
 POPULATION_SIZE_OPTION = 'population_size'
 EVOLUTION_STEPS_OPTION = 'evolution_steps'
-CELL_SIZE_OPTION = 'cell_size'
+MIN_CELL_SIZE_OPTION = 'min_cell_size'
 ELITE_PROPORTION_OPTION = 'elite_proportion'
 CELLS_LENGTH_WEIGHTS_RATIO_OPTION = 'cells_length_weights_ratio'
 MUTATION_RATE_OPTION = 'mutation_rate'
@@ -33,10 +33,11 @@ def path_collection_to_robot_paths(path_collection: PathCollection, cell_size: f
     return robot_paths
 
 
-def run_exp(hyperparams: dict) -> None:
-    output_filename = datetime.datetime.now().strftime('%y%m%d-%H%M.csv')
-    output_path = os.path.join("out", output_filename)
-    assert not os.path.exists(output_path)
+def run_exp(hyperparams: dict, save: bool = False, output_path: str = "", verbose=False) -> pd.DataFrame:
+    if save:
+        output_filename = datetime.datetime.now().strftime('%y%m%d-%H%M.csv')
+        output_path = output_path or os.path.join("out", output_filename)
+        assert not os.path.exists(output_path)
     headers = []
     parameters_values = []
     for key, value in hyperparams.items():
@@ -51,11 +52,11 @@ def run_exp(hyperparams: dict) -> None:
             scene = Scene.from_dict(json.load(fp))
             solver = CleanerRobotGA(population_size=curr_params_dict[POPULATION_SIZE_OPTION],
                                     evolution_steps=curr_params_dict[EVOLUTION_STEPS_OPTION],
-                                    cell_size=curr_params_dict[CELL_SIZE_OPTION],
+                                    min_cell_size=curr_params_dict[MIN_CELL_SIZE_OPTION],
                                     elite_proportion=curr_params_dict[ELITE_PROPORTION_OPTION],
                                     cells_length_weights_ratio=curr_params_dict[CELLS_LENGTH_WEIGHTS_RATIO_OPTION],
                                     mutation_rate=curr_params_dict[MUTATION_RATE_OPTION],
-                                    verbose=False
+                                    verbose=verbose
                                     )
             times = []
             lengths = []
@@ -75,9 +76,11 @@ def run_exp(hyperparams: dict) -> None:
 
             result.append(list(combination) + [avg_time, avg_path_length, avg_cells_num])
 
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
     df = pd.DataFrame(result, columns=headers + ['avg_time', 'avg_path_length', 'avg_cells_num'])
-    df.to_csv(output_path, index=False)
+    if save:
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        df.to_csv(output_path, index=False)
+    return df
 
 
 def first_params_initialization():
@@ -86,7 +89,7 @@ def first_params_initialization():
         ITERATION_NUMBER_OPTION: [2],
         POPULATION_SIZE_OPTION: [10, 20],
         EVOLUTION_STEPS_OPTION: [20, 40],
-        CELL_SIZE_OPTION: [1.0],
+        MIN_CELL_SIZE_OPTION: [1.0],
         ELITE_PROPORTION_OPTION: [0.1, 0.5],
         CELLS_LENGTH_WEIGHTS_RATIO_OPTION: [0.2, 0.8],
         MUTATION_RATE_OPTION: [0.1, 0.5, 0.9],
@@ -159,6 +162,20 @@ def get_correlation():
     ]]
     print(X.corr().to_csv("out/correlation.csv"))
 
+
+def single_debug_experiment():
+    hyperparams = {
+        SCENE_FILENAME_OPTION: ["basic_scene.json"],
+        ITERATION_NUMBER_OPTION: [1],
+        POPULATION_SIZE_OPTION: [10],
+        EVOLUTION_STEPS_OPTION: [50],
+        MIN_CELL_SIZE_OPTION: [1.0],
+        ELITE_PROPORTION_OPTION: [0.1],
+        CELLS_LENGTH_WEIGHTS_RATIO_OPTION: [0.8],
+        MUTATION_RATE_OPTION: [0.5],
+    }
+    run_exp(hyperparams, save=False, verbose=True)
+
 if __name__ == '__main__':
-    first_params_initialization()
+    single_debug_experiment()
 
