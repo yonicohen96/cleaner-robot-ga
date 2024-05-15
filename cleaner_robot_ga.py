@@ -75,7 +75,6 @@ def merge(parent_0: list[RobotPath], parent_1: list[RobotPath], robot_path_idx: 
 
 def random_choices_no_repetitions(population: list[Any], weights: list[float] | np.ndarray, k: int) -> list[Any]:
     assert len(population) == len(weights)
-    assert len([weight for weight in weights if weight > 0]) >= k
     weights = weights.copy()
     result = []
     population_indices = list(range(len(population)))
@@ -83,6 +82,8 @@ def random_choices_no_repetitions(population: list[Any], weights: list[float] | 
         selected_item_idx = random.choices(population=population_indices, weights=weights, k=1)[0]
         result.append(population[selected_item_idx])
         weights[selected_item_idx] = 0
+        if sum(weights) == 0:
+            weights = np.full(len(weights), 1 / len(weights))
     return result
 
 
