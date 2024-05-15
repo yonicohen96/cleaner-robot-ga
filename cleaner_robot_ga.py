@@ -111,16 +111,23 @@ class CleanerRobotGA(Solver):
 
     """
 
-    def __init__(self, num_landmarks=1000, k=15, bounding_margin_width_factor=Solver.DEFAULT_BOUNDS_MARGIN_FACTOR,
-                 population_size: int = 10, evolution_steps: int = 20,
-                 min_cell_size: float = 1.0, elite_proportion: float = 0.1,
+    def __init__(self,
+                 num_landmarks=1000,
+                 k=15,
+                 bounding_margin_width_factor=Solver.DEFAULT_BOUNDS_MARGIN_FACTOR,
+                 population_size: int = 10,
+                 evolution_steps: int = 20,
+                 min_cell_size: float = 1.0,
+                 elite_proportion: float = 0.1,
                  cells_length_weights_ratio: float = 0.8,
                  mutation_rate: float = 0.3,
                  cell_size_jump_size_ratio: float = 0.1,
                  verbose: bool = True):
         assert population_size > 1
+        # Check that elite population is not the entire population.
         assert population_size > int(elite_proportion * population_size)
         super().__init__(bounding_margin_width_factor)
+
         # Roadmaps creation attributes
         self.nearest_neighbors = NearestNeighbors_sklearn()
         self.metric = Metric_Euclidean
@@ -145,7 +152,6 @@ class CleanerRobotGA(Solver):
         self.collision_detection = {}
         self.population: list[list[RobotPath]] = []
 
-        # Print
         self.verbose = verbose
 
     @staticmethod
@@ -153,7 +159,7 @@ class CleanerRobotGA(Solver):
         """
         Return a list of arguments and their description, defaults and types.
         Can be used by a GUI to generate fields dynamically.
-        Should be overridded by solvers.
+        Should be overridden by solvers.
 
         :return: arguments dict
         :rtype: :class:`dict`
@@ -177,7 +183,7 @@ class CleanerRobotGA(Solver):
     def from_arguments(d):
         """
         Get a dictionary of arguments and return a solver.
-        Should be overridded by solvers.
+        Should be overridden by solvers.
 
         :param d: arguments dict
         :type d: :class:`dict`
@@ -198,7 +204,7 @@ class CleanerRobotGA(Solver):
     def get_graph(self):
         """
         Return a graph (if applicable).
-        Can be overridded by solvers.
+        Can be overridden by solvers.
 
         :return: graph whose vertices are Point_2 or Point_d
         :rtype: :class:`networkx.Graph` or :class:`None`

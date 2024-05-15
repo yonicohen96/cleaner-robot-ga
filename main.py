@@ -69,9 +69,9 @@ def run_exp(hyperparams: dict, save: bool = False, output_path: str = "", verbos
 
             # Calculate statistics for scene and algorithm.
             avg_time = sum(times) / len(times)
-            fitness_values = sum(fitness_values) / len(fitness_values)
+            avg_fitness = sum(fitness_values) / len(fitness_values)
 
-            result.append(list(combination) + [avg_time, fitness_values])
+            result.append(list(combination) + [avg_time, avg_fitness])
 
     df = pd.DataFrame(result, columns=headers + ['avg_time', 'avg_fitness_values'])
     if save:
@@ -91,7 +91,7 @@ def first_params_initialization():
         CELLS_LENGTH_WEIGHTS_RATIO_OPTION: [0.2, 0.8],
         MUTATION_RATE_OPTION: [0.1, 0.5, 0.9],
     }
-    run_exp(hyperparams)
+    run_exp(hyperparams, save=True, verbose=False)
 
 
 def get_coef(filename):
