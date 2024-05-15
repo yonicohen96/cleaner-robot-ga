@@ -118,7 +118,6 @@ class CleanerRobotGA(Solver):
                  evolution_steps: int = 20,
                  min_cell_size: float = 1.0,
                  elite_proportion: float = 0.1,
-                 cells_length_weights_ratio: float = 0.8,
                  mutation_rate: float = 0.3,
                  cell_size_decrease_interval: int = 5,
                  verbose: bool = True):
@@ -140,7 +139,6 @@ class CleanerRobotGA(Solver):
         self.min_cell_size = min_cell_size
         self.elite_proportion = elite_proportion
         self.elite_size = int(elite_proportion * self.population_size)
-        self.cells_length_weights_ratio = cells_length_weights_ratio
         self.mutation_rate = mutation_rate
         self.cell_size_decrease_interval = cell_size_decrease_interval
         self.cell_size = None
@@ -172,7 +170,6 @@ class CleanerRobotGA(Solver):
             'evolution_steps': ('evolution steps:', 20, int),
             'min_cell_size': ('min cell size:', 1.0, float),
             'elite_proportion': ('elite proportion:', 0.1, float),
-            'cells_length_weights_ratio': ('cells length weights ratio:', 0.8, float),
             'mutation_rate': ('mutation rate:', 0.3, float),
             'cell_size_decrease_interval': ('cell_size_decrease_interval', 5, int),
             'verbose': ('verbose:', True, bool),
@@ -194,7 +191,6 @@ class CleanerRobotGA(Solver):
                               d['evolution_steps'],
                               d['min_cell_size'],
                               d['elite_proportion'],
-                              d['cells_length_weights_ratio'],
                               d['mutation_rate'],
                               d['cell_size_decrease_interval'],
                               d['verbose'],

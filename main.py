@@ -6,6 +6,9 @@ import pandas as pd
 import datetime
 import itertools
 import tqdm
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error, r2_score
 
 SCENE_FILENAME_OPTION = 'scene_filename'
 ITERATION_NUMBER_OPTION = 'iteration_number'
@@ -13,8 +16,19 @@ POPULATION_SIZE_OPTION = 'population_size'
 EVOLUTION_STEPS_OPTION = 'evolution_steps'
 MIN_CELL_SIZE_OPTION = 'min_cell_size'
 ELITE_PROPORTION_OPTION = 'elite_proportion'
-CELLS_LENGTH_WEIGHTS_RATIO_OPTION = 'cells_length_weights_ratio'
 MUTATION_RATE_OPTION = 'mutation_rate'
+CELL_SIZE_DECREASE_INTERVAL_OPTION = 'cell_size_decrease_interval'
+NUMERICAL_OPTIONS_LIST = [
+    ITERATION_NUMBER_OPTION,
+    POPULATION_SIZE_OPTION,
+    EVOLUTION_STEPS_OPTION,
+    MIN_CELL_SIZE_OPTION,
+    ELITE_PROPORTION_OPTION,
+    MUTATION_RATE_OPTION,
+    CELL_SIZE_DECREASE_INTERVAL_OPTION,
+]
+AVG_TIME_FIELD = "avg_time"
+AVG_FITNESS_FIELD = "avg_fitness"
 
 
 def get_time_and_path_collection(solver, scene):
@@ -54,8 +68,8 @@ def run_exp(hyperparams: dict, save: bool = False, output_path: str = "", verbos
                                     evolution_steps=curr_params_dict[EVOLUTION_STEPS_OPTION],
                                     min_cell_size=curr_params_dict[MIN_CELL_SIZE_OPTION],
                                     elite_proportion=curr_params_dict[ELITE_PROPORTION_OPTION],
-                                    cells_length_weights_ratio=curr_params_dict[CELLS_LENGTH_WEIGHTS_RATIO_OPTION],
                                     mutation_rate=curr_params_dict[MUTATION_RATE_OPTION],
+                                    cell_size_decrease_interval=curr_params_dict[CELL_SIZE_DECREASE_INTERVAL_OPTION],
                                     verbose=verbose
                                     )
             times = []
@@ -73,7 +87,7 @@ def run_exp(hyperparams: dict, save: bool = False, output_path: str = "", verbos
 
             result.append(list(combination) + [avg_time, avg_fitness])
 
-    df = pd.DataFrame(result, columns=headers + ['avg_time', 'avg_fitness_values'])
+    df = pd.DataFrame(result, columns=headers + [AVG_TIME_FIELD, AVG_FITNESS_FIELD])
     if save:
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         df.to_csv(output_path, index=False)
@@ -88,31 +102,19 @@ def first_params_initialization():
         EVOLUTION_STEPS_OPTION: [20, 40],
         MIN_CELL_SIZE_OPTION: [1.0],
         ELITE_PROPORTION_OPTION: [0.1, 0.5],
-        CELLS_LENGTH_WEIGHTS_RATIO_OPTION: [0.2, 0.8],
         MUTATION_RATE_OPTION: [0.1, 0.5, 0.9],
+        CELL_SIZE_DECREASE_INTERVAL_OPTION: [5, 10],
     }
     run_exp(hyperparams, save=True, verbose=False)
 
 
 def get_coef(filename):
-    import pandas as pd
-    from sklearn.model_selection import train_test_split
-    from sklearn.linear_model import LinearRegression
-    from sklearn.metrics import mean_squared_error, r2_score
-
     # Step 1: Read the CSV file into a pandas DataFrame
     data = pd.read_csv(os.path.join("out", filename))
 
     # Step 2: Separate the features (A, B, C) and the target variable (D)
-    X = data[[
-        'iteration_number',
-        'population_size',
-        'evolution_steps',
-        'cell_size',
-        'elite_proportion',
-        'cells_length_weights_ratio',
-        'mutation_rate']]
-    y = data['avg_fitness_values']
+    X = data[NUMERICAL_OPTIONS_LIST]
+    y = data[AVG_FITNESS_FIELD]
 
     # Step 3: Split the data into training and testing sets
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -143,17 +145,7 @@ def get_correlation():
     data = pd.read_csv(os.path.join("out", "240514-2048.csv"))
 
     # Step 2: Separate the features (A, B, C) and the target variable (D)
-    X = data[[
-        'iteration_number',
-        'population_size',
-        'evolution_steps',
-        'cell_size',
-        'elite_proportion',
-        'cells_length_weights_ratio',
-        'mutation_rate',
-        'avg_time',
-        'fitness_values',
-    ]]
+    X = data[NUMERICAL_OPTIONS_LIST + [AVG_TIME_FIELD, AVG_FITNESS_FIELD]]
     print(X.corr().to_csv("out/correlation.csv"))
 
 
@@ -165,11 +157,11 @@ def single_debug_experiment():
         EVOLUTION_STEPS_OPTION: [50],
         MIN_CELL_SIZE_OPTION: [1.0],
         ELITE_PROPORTION_OPTION: [0.1],
-        CELLS_LENGTH_WEIGHTS_RATIO_OPTION: [0.8],
         MUTATION_RATE_OPTION: [0.5],
+        CELL_SIZE_DECREASE_INTERVAL_OPTION: [5]
     }
-    run_exp(hyperparams, save=False, verbose=True)
+    run_exp(hyperparams, save=True, verbose=True)
 
 
 if __name__ == '__main__':
-    single_debug_experiment()
+    first_params_initialization()
