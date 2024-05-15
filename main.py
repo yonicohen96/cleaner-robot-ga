@@ -59,24 +59,21 @@ def run_exp(hyperparams: dict, save: bool = False, output_path: str = "", verbos
                                     verbose=verbose
                                     )
             times = []
-            lengths = []
-            cells_num = []
+            fitness_values = []
             for _ in range(curr_params_dict[ITERATION_NUMBER_OPTION]):
                 total_time, path_collection = get_time_and_path_collection(solver, scene)
                 robots_paths = path_collection_to_robot_paths(path_collection, solver.cell_size)
                 fitness = get_fitness(robots_paths)
                 times.append(total_time)
-                lengths.append(fitness.length)
-                cells_num.append(fitness.cells_num)
+                fitness_values.append(fitness)
 
             # Calculate statistics for scene and algorithm.
             avg_time = sum(times) / len(times)
-            avg_path_length = sum(lengths) / len(lengths)
-            avg_cells_num = sum(cells_num) / len(cells_num)
+            fitness_values = sum(fitness_values) / len(fitness_values)
 
-            result.append(list(combination) + [avg_time, avg_path_length, avg_cells_num])
+            result.append(list(combination) + [avg_time, fitness_values])
 
-    df = pd.DataFrame(result, columns=headers + ['avg_time', 'avg_path_length', 'avg_cells_num'])
+    df = pd.DataFrame(result, columns=headers + ['avg_time', 'avg_fitness_values'])
     if save:
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         df.to_csv(output_path, index=False)
@@ -115,7 +112,7 @@ def get_coef(filename):
                 'elite_proportion',
                 'cells_length_weights_ratio',
                 'mutation_rate']]
-    y = data['avg_cells_num']
+    y = data['avg_fitness_values']
 
     # Step 3: Split the data into training and testing sets
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -140,9 +137,6 @@ def get_coef(filename):
 
 def get_correlation():
     import pandas as pd
-    from sklearn.model_selection import train_test_split
-    from sklearn.linear_model import LinearRegression
-    from sklearn.metrics import mean_squared_error, r2_score
 
     # Step 1: Read the CSV file into a pandas DataFrame
     data = pd.read_csv(os.path.join("out", "240514-2048.csv"))
@@ -157,8 +151,7 @@ def get_correlation():
                 'cells_length_weights_ratio',
                 'mutation_rate',
                 'avg_time',
-                'avg_path_length',
-                'avg_cells_num'
+                'fitness_values',
     ]]
     print(X.corr().to_csv("out/correlation.csv"))
 

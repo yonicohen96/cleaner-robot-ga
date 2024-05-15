@@ -1,5 +1,4 @@
 import networkx as nx
-import numpy as np
 from discopygal.solvers import Robot
 from discopygal.solvers import Scene
 from discopygal.solvers import PathPoint, Path
@@ -34,24 +33,6 @@ class RobotPath:
             file=writer)
 
 
-@dataclass
-class FitnessValue:
-    cells_num: int
-    length: float
-
-    def __lt__(self, other):
-        return (self.cells_num, -self.length) < (other.cells_num, -other.length)
-
-
-def get_fitness(robots_paths: list[RobotPath]) -> FitnessValue:
-    total_length = 0.0
-    cells = set()
-    for robot_path in robots_paths:
-        total_length += robot_path.path_length
-        cells.update(robot_path.cells)
-    return FitnessValue(len(cells), total_length)
-
-
 def get_distribution(arr: np.ndarray, opposite_values=False) -> np.ndarray:
     """
     Given an array with non-negative values, derive a distribution which is proportional to the values of the array
@@ -64,22 +45,6 @@ def get_distribution(arr: np.ndarray, opposite_values=False) -> np.ndarray:
     if scores.max() == scores.min():
         return np.full(scores.size, 1 / scores.size)
     return scores / scores.sum()
-
-
-def get_fitness_distribution(fitness_values: list[FitnessValue], cell_num_length_ratio: float) -> np.ndarray:
-    """
-    Return a distribution over list of fitness values. A FitnessValue with a higher cells number and lower length
-    will get a higher distribution.
-    :param fitness_values: A list of fitness values.
-    :param cell_num_length_ratio: A weighting term for the output distribution that determines. A higher value will give
-    a higher weight for the cells number and a lower weight for the legnth and vice versa.
-    :return: The derived distribution.
-    """
-    cells_num_distribution = get_distribution(np.array([fitness_value.cells_num for fitness_value in fitness_values]),
-                                              opposite_values=False)
-    length_distribution = get_distribution(np.array([fitness_value.length for fitness_value in fitness_values]),
-                                           opposite_values=True)
-    return cell_num_length_ratio * cells_num_distribution + (1 - cell_num_length_ratio) * length_distribution
 
 
 def get_highest_k_indices(values: list | np.ndarray, k: int) -> list[int]:
@@ -120,6 +85,17 @@ def random_choices_no_repetitions(population: list[Any], weights: list[float] | 
         if sum(weights) == 0:
             weights = [1 / len(weights)] * len(weights)
     return result
+
+
+def get_fitness(robots_paths: list[RobotPath]) -> float:
+    cells = dict()
+    for robot_path in robots_paths:
+        for cell in robot_path.cells:
+            if cell in cells:
+                cells[cell] = 0
+            else:
+                cells[cell] = 1
+    return sum(cells.values())
 
 
 class CleanerRobotGA(Solver):
@@ -340,16 +316,6 @@ class CleanerRobotGA(Solver):
             return
         print(to_print, file=self.writer, *args, **kwargs)
 
-    def get_fitness_2(self, robots_paths: list[RobotPath]) -> float:
-        cells = dict()
-        for robot_path in robots_paths:
-            for cell in robot_path.cells:
-                if cell in cells:
-                    cells[cell] = 0
-                else:
-                    cells[cell] = 1
-        return sum(cells.values())
-
     def updated_cell_size(self, new_cell_size: float) -> None:
         self.cell_size = new_cell_size
         new_population = []
@@ -374,6 +340,7 @@ class CleanerRobotGA(Solver):
         super().load_scene(scene)
         self.sampler.set_scene(scene, self._bounding_box)
         self.cell_size = self.get_bounding_box_size()
+
         # Build collision detection and roadmap for each robot.
         self.print(f'Creating robot roadmaps...')
         for robot in scene.robots:
@@ -392,10 +359,7 @@ class CleanerRobotGA(Solver):
         for step in range(self.evolution_steps):
             self.print(f'\tevolution step {step + 1}/{self.evolution_steps}')
             # Compute fitness value.
-            # fitness_values = [get_fitness(robots_paths) for robots_paths in self.population]
-            # fitness_distribution = get_fitness_distribution(fitness_values, self.cells_length_weights_ratio)
-            fitness_values = [self.get_fitness_2(robots_paths) for robots_paths in self.population]
-
+            fitness_values = [get_fitness(robots_paths) for robots_paths in self.population]
 
             if self.cell_size >= self.min_cell_size * 2 and max(fitness_values) == best_fitness_value:
                 steps_without_progress += 1
@@ -405,12 +369,11 @@ class CleanerRobotGA(Solver):
                     self.updated_cell_size(self.cell_size / 2)
                     self.print("\t\t################# updated cell size to: ", self.cell_size)
                     self.print("\t\t################# number of cells: ", self.get_number_of_cells())
-                    fitness_values = [self.get_fitness_2(robots_paths) for robots_paths in self.population]
+                    fitness_values = [get_fitness(robots_paths) for robots_paths in self.population]
             self.print(f"\t\t{fitness_values=}")
             self.print("\t\t max fitness value: ", max(fitness_values))
 
             best_fitness_value = max(fitness_values)
-
             fitness_distribution = get_distribution(np.array(fitness_values))
 
             # Get elite population.
@@ -431,11 +394,14 @@ class CleanerRobotGA(Solver):
         :rtype: :class:`~discopygal.solvers.PathCollection`
         """
         self.print(f'Fetching best individual...')
+        self.updated_cell_size(self.min_cell_size)
         path_collection = PathCollection()
-        fittest_robot_paths = max(self.population, key=lambda robot_paths: self.get_fitness_2(robot_paths))
+        fittest_robot_paths = max(self.population, key=lambda robot_paths: get_fitness(robot_paths))
+        self.print(f"\t\t{get_fitness(fittest_robot_paths)=}")
         for i, robot_path in enumerate(fittest_robot_paths):
             self.print(f"{robot_path.cells=}")
             path_collection.add_robot_path(robot_path.robot, Path([PathPoint(point) for point in robot_path.path]))
+
         self.print(f'Successfully found paths.')
         self.print(f"number of cells: {self.get_number_of_cells()}")
         return path_collection
