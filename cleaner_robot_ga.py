@@ -139,6 +139,7 @@ class CleanerRobotGA(Solver):
                  cell_size: float = 1.0, elite_proportion: float = 0.1,
                  cells_length_weights_ratio: float = 0.8,
                  mutation_rate: float = 0.3,
+                 cell_size_jump_size_ratio: float = 0.1,
                  verbose: bool = True):
         assert population_size > 1
         assert population_size > int(elite_proportion * population_size)
@@ -158,6 +159,7 @@ class CleanerRobotGA(Solver):
         self.elite_size = int(elite_proportion * self.population_size)
         self.cells_length_weights_ratio = cells_length_weights_ratio
         self.mutation_rate = mutation_rate
+        self.cell_size_jump_size_ratio = cell_size_jump_size_ratio
 
         # Datastructures initializations
         self.roadmap = None
@@ -189,9 +191,8 @@ class CleanerRobotGA(Solver):
             'elite_proportion': ('elite proportion:',  0.1,  float),
             'cells_length_weights_ratio': ('cells length weights ratio:',  0.8,  float),
             'mutation_rate': ('mutation rate:',  0.3,  float),
+            'cell_size_jump_size_ratio': ('cell_size_jump_size_ratio', 0.1, float),
             'verbose': ('verbose:', True, bool),
-
-
         }
 
     @staticmethod
@@ -212,6 +213,7 @@ class CleanerRobotGA(Solver):
                               d['elite_proportion'],
                               d['cells_length_weights_ratio'],
                               d['mutation_rate'],
+                              d['cell_size_jump_size_ratio'],
                               d['verbose'],
                               )
 
@@ -334,7 +336,18 @@ class CleanerRobotGA(Solver):
     def print(self, to_print: str, *args, **kwargs):
         if not self.verbose:
             return
-        print(to_print, *args, **kwargs, file=self.writer)
+        print(to_print, *args, **kwargs)
+
+    def get_fitness_2(self, robots_paths: list[RobotPath]) -> float:
+        cells = dict()
+        for robot_path in robots_paths:
+            for cell in robot_path.cells:
+                if cell in cells:
+                    cells[cell] = 0
+                else:
+                    cells[cell] = 1
+        return sum(cells.values())
+
 
     def load_scene(self, scene: Scene):
         super().load_scene(scene)
@@ -356,8 +369,10 @@ class CleanerRobotGA(Solver):
             self.print(f'\tevolution step {step + 1}/{self.evolution_steps}', file=self.writer)
 
             # Compute fitness value.
-            fitness_values = [get_fitness(robots_paths) for robots_paths in self.population]
-            fitness_distribution = get_fitness_distribution(fitness_values, self.cells_length_weights_ratio)
+            # fitness_values = [get_fitness(robots_paths) for robots_paths in self.population]
+            # fitness_distribution = get_fitness_distribution(fitness_values, self.cells_length_weights_ratio)
+            fitness_values = [self.get_fitness_2(robots_paths) for robots_paths in self.population]
+            fitness_distribution = get_distribution(np.array(fitness_values))
 
             # Get elite population.
             elite_population = [self.population[i] for i in get_highest_k_indices(fitness_distribution, self.elite_size)]

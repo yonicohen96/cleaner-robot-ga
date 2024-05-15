@@ -160,5 +160,5 @@ def get_correlation():
     print(X.corr().to_csv("out/correlation.csv"))
 
 if __name__ == '__main__':
-    get_correlation()
+    first_params_initialization()
 
