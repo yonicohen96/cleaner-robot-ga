@@ -52,27 +52,6 @@ def get_highest_k_indices(values: list | np.ndarray, k: int) -> list[int]:
     return sorted_indices[:k]
 
 
-# TODO: delete if we don't use it.
-def merge(parent_0: list[RobotPath], parent_1: list[RobotPath], robot_path_idx: int, robot: Robot, cell_size: float,
-          roadmaps: dict[Robot, nx.Graph]) -> RobotPath:
-    parent_0_end_index = random.randint(0, len(parent_0[robot_path_idx].path) - 1)
-    parent_1_start_index = random.randint(0, len(parent_1[robot_path_idx].path) - 1)
-    parent_0_end_point = parent_0[robot_path_idx].path[parent_0_end_index]
-    parent_1_start_point = parent_1[robot_path_idx].path[parent_1_start_index]
-
-    if nx.algorithms.has_path(roadmaps[robot], parent_0_end_point,
-                              parent_1_start_point):
-        path_start = parent_0[robot_path_idx].path[:parent_0_end_index]
-        path_middle = list(nx.algorithms.shortest_path(roadmaps[robot], parent_0_end_point,
-                                                       parent_1_start_point, weight='weight'))
-        path_end = parent_1[robot_path_idx].path[parent_1_start_index:]
-        merged_robot_path = RobotPath(
-            robot=robot,
-            path=path_start + path_middle[:-1] + path_end,
-            cell_size=cell_size)
-        return merged_robot_path
-
-
 def random_choices_no_repetitions(population: list[Any], weights: list[float] | np.ndarray, k: int) -> list[Any]:
     assert len(population) == len(weights)
     weights = weights.copy()
@@ -124,6 +103,7 @@ class CoveragePathPlanner(Solver):
                  add_remove_mutation_ratio: float = 0.8,
                  mutation_std: float = 2,
                  random_point_initialization: int = 0,
+                 crossover_merge: int = 0,
                  verbose: int = 1):
         assert population_size > 1
         # Check that elite population is not the entire population.
@@ -148,6 +128,7 @@ class CoveragePathPlanner(Solver):
         self.add_remove_mutation_ratio = add_remove_mutation_ratio
         self.mutation_std = mutation_std
         self.random_point_initialization = random_point_initialization
+        self.crossover_merge = crossover_merge
 
         # Datastructures initializations
         self.cell_size = None
@@ -182,6 +163,7 @@ class CoveragePathPlanner(Solver):
             'add_remove_mutation_ratio': ('add_remove_mutation_ratio',  0.8, float),
             'mutation_std': ('mutation_std',  2, float),
             'random_point_initialization': ('random_point_initialization',  0, int),
+            'crossover_merge': ('crossover_merge', 0, int),
             'verbose': ('verbose:', 1, int),
         }
 
@@ -206,6 +188,7 @@ class CoveragePathPlanner(Solver):
                                    d['add_remove_mutation_ratio'],
                                    d['mutation_std'],
                                    d['random_point_initialization'],
+                                   d['crossover_merge'],
                                    d['verbose'],
                                    )
 
@@ -230,7 +213,39 @@ class CoveragePathPlanner(Solver):
             return False
         return True
 
-    def crossover(self, fitness_distribution: np.ndarray, num_individuals: int) -> list[list[RobotPath]]:
+    def merge(self, parent_0_robot_path: RobotPath, parent_1_robot_path: RobotPath, robot: Robot) -> RobotPath:
+        parent_0_end_index = random.randint(0, len(parent_0_robot_path.path) - 1)
+        parent_1_start_index = random.randint(0, len(parent_1_robot_path.path) - 1)
+        parent_0_end_point = parent_0_robot_path.path[parent_0_end_index]
+        parent_1_start_point = parent_1_robot_path.path[parent_1_start_index]
+        roadmap = self.roadmaps[robot]
+        if nx.algorithms.has_path(roadmap, parent_0_end_point,
+                                  parent_1_start_point):
+            path_start = parent_0_robot_path.path[:parent_0_end_index]
+            path_middle = list(nx.algorithms.shortest_path(roadmap, parent_0_end_point,
+                                                           parent_1_start_point, weight='weight'))
+            path_end = parent_1_robot_path.path[parent_1_start_index:]
+            merged_robot_path = RobotPath(
+                robot=robot,
+                path=path_start + path_middle[:-1] + path_end,
+                cell_size=self.cell_size)
+            return merged_robot_path
+
+    def crossover_with_merge(self, fitness_distribution: np.ndarray, num_individuals: int) -> list[list[RobotPath]]:
+        crossovers = []
+        for child_idx in range(num_individuals):
+            # Create the next child by merging two parents.
+            child: list[RobotPath] = []
+            parent_0, parent_1 = random_choices_no_repetitions(self.population, fitness_distribution, k=2)
+            num_robots = len(parent_0)
+            for robot_path_idx in range(num_robots):
+                robot = parent_0[robot_path_idx].robot
+                merged_robot_path = self.merge(parent_0[robot_path_idx], parent_1[robot_path_idx], robot)
+                child.append(merged_robot_path)
+            crossovers.append(child)
+        return crossovers
+
+    def crossover_no_merge(self, fitness_distribution: np.ndarray, num_individuals: int) -> list[list[RobotPath]]:
         crossovers = []
         for child_idx in range(num_individuals):
             # Create the next child by merging two parents.
@@ -243,6 +258,11 @@ class CoveragePathPlanner(Solver):
                 child.append(selected_parent[robot_path_idx])
             crossovers.append(child)
         return crossovers
+
+    def crossover(self, fitness_distribution: np.ndarray, num_individuals: int) -> list[list[RobotPath]]:
+        if self.crossover_merge:
+            return self.crossover_with_merge(fitness_distribution, num_individuals)
+        return self.crossover_no_merge(fitness_distribution, num_individuals)
 
     def add_point_to_robot_path(self, robot_path: RobotPath) -> RobotPath:
         robot = robot_path.robot
@@ -319,7 +339,6 @@ class CoveragePathPlanner(Solver):
         return RobotPath(robot=robot,
                          path=orig_path[:start_point_index] + list(shorter_path)[:-1] + orig_path[end_point_index:],
                          cell_size=self.cell_size)
-
 
     def mutate_gaussian_or_remove(self, crossovers: list[list[RobotPath]]) -> list[list[RobotPath]]:
         mutated_crossovers: list[list[RobotPath]] = []
