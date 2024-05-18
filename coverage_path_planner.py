@@ -15,6 +15,8 @@ from utils import *
 import math
 
 
+# TODO add _ to private functions.
+
 @dataclass
 class RobotPath:
     def __init__(self, robot: Robot, path: list[Point_2], cell_size: float):
@@ -104,6 +106,7 @@ class CoveragePathPlanner(Solver):
                  mutation_std: float = 2,
                  random_point_initialization: int = 0,
                  crossover_merge: int = 0,
+                 mutate_gauss: int = 1,
                  verbose: int = 1):
         assert population_size > 1
         # Check that elite population is not the entire population.
@@ -129,6 +132,7 @@ class CoveragePathPlanner(Solver):
         self.mutation_std = mutation_std
         self.random_point_initialization = random_point_initialization
         self.crossover_merge = crossover_merge
+        self.mutate_gauss = mutate_gauss
 
         # Datastructures initializations
         self.cell_size = None
@@ -164,6 +168,7 @@ class CoveragePathPlanner(Solver):
             'mutation_std': ('mutation_std',  2, float),
             'random_point_initialization': ('random_point_initialization',  0, int),
             'crossover_merge': ('crossover_merge', 0, int),
+            'mutate_gauss': ('mutate_gauss', 1, int),
             'verbose': ('verbose:', 1, int),
         }
 
@@ -189,6 +194,7 @@ class CoveragePathPlanner(Solver):
                                    d['mutation_std'],
                                    d['random_point_initialization'],
                                    d['crossover_merge'],
+                                   d['mutate_gauss'],
                                    d['verbose'],
                                    )
 
@@ -442,6 +448,11 @@ class CoveragePathPlanner(Solver):
         return math.ceil((bounding_box.max_x.to_double() - bounding_box.min_x.to_double()) / self.cell_size) * \
             math.ceil((bounding_box.max_y.to_double() - bounding_box.min_y.to_double()) / self.cell_size)
 
+    def mutate(self, crossovers: list[list[RobotPath]]) -> list[list[RobotPath]]:
+        if self.mutate_gauss:
+            return self.mutate_gaussian_or_remove(crossovers)
+        return self.mutate_add_sample(crossovers)
+
     def load_scene(self, scene: Scene):
         super().load_scene(scene)
         self.sampler.set_scene(scene, self._bounding_box)
@@ -491,8 +502,7 @@ class CoveragePathPlanner(Solver):
 
             # Apply crossover and mutation operators.
             crossover_population = self.crossover(fitness_distribution, self.population_size - self.elite_size)
-            mutated_crossover_population = self.mutate_gaussian_or_remove(crossover_population)
-            # TODO add option for another mutation.
+            mutated_crossover_population = self.mutate(crossover_population)
 
             self.population = elite_population + mutated_crossover_population
 
