@@ -1,0 +1,164 @@
+{
+  "__class__": "Scene",
+  "obstacles": [
+    {
+        "__class__": "ObstaclePolygon",
+        "poly": [
+                [
+                    -1,
+                    -1
+                ],
+                [
+                    -1,
+                    1
+                ],
+                [
+                    1,
+                    1
+                ],
+                [
+                    1,
+                    -1
+                ]
+        ],
+        "data": {
+        }
+    },
+
+    {
+        "__class__": "ObstaclePolygon",
+        "poly": [
+                [
+                    0,
+                    40
+                ],
+                [
+                    -1,
+                    41
+                ],
+                [
+                    -1,
+                    -1
+                ],
+                [
+                    0,
+                    0
+                ]
+        ],
+        "data": {
+        }
+    },
+    {
+        "__class__": "ObstaclePolygon",
+        "poly": [
+                [
+                    40,
+                    40
+                ],
+                [
+                    41,
+                    41
+                ],
+                [
+                    41,
+                    -1
+                ],
+                [
+                    40,
+                    0
+                ]
+        ],
+        "data": {
+        }
+    },
+    {
+        "__class__": "ObstaclePolygon",
+        "poly": [
+                [
+                    0,
+                    40
+                ],
+                [
+                    40,
+                    40
+                ],
+                [
+                    41,
+                    41
+                ],
+                [
+                    -1,
+                    41
+                ]
+        ],
+        "data": {
+        }
+    },
+    {
+        "__class__": "ObstaclePolygon",
+        "poly": [
+                [
+                    0,
+                    0
+                ],
+                [
+                    40,
+                    0
+                ],
+                [
+                    41,
+                    -1
+                ],
+                [
+                    -1,
+                    -1
+                ]
+        ],
+        "data": {
+        }
+    }],
+  "robots": [
+    {
+      "__class__": "RobotDisc",
+      "radius": 1,
+      "start": [
+        4,
+        10
+      ],
+      "end": [
+        36,
+        10
+      ],
+      "data": {}
+    },
+
+    {
+      "__class__": "RobotDisc",
+      "radius": 1,
+      "start": [
+        4,
+        20
+      ],
+      "end": [
+        36,
+        20
+      ],
+      "data": {}
+    },
+
+    {
+      "__class__": "RobotDisc",
+      "radius": 1,
+      "start": [
+        4,
+        30
+      ],
+      "end": [
+        36,
+        30
+      ],
+      "data": {}
+    }],
+  "metadata": {}
+}
+    

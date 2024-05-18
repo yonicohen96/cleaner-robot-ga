@@ -121,7 +121,10 @@ class CoveragePathPlanner(Solver):
                  elite_proportion: float = 0.1,
                  mutation_rate: float = 0.3,
                  cell_size_decrease_interval: int = 5,
-                 verbose: bool = True):
+                 add_remove_mutation_ratio: float = 0.8,
+                 mutation_std: float = 2,
+                 random_point_initialization: int = 0,
+                 verbose: int = 1):
         assert population_size > 1
         # Check that elite population is not the entire population.
         assert population_size > int(elite_proportion * population_size)
@@ -142,12 +145,12 @@ class CoveragePathPlanner(Solver):
         self.elite_size = int(elite_proportion * self.population_size)
         self.mutation_rate = mutation_rate
         self.cell_size_decrease_interval = cell_size_decrease_interval
-        self.cell_size = None
-        # TODO consider adding as arguments
-        self.add_remove_mutation_ratio = 0.8
-        self.mutation_std = 2
+        self.add_remove_mutation_ratio = add_remove_mutation_ratio
+        self.mutation_std = mutation_std
+        self.random_point_initialization = random_point_initialization
 
         # Datastructures initializations
+        self.cell_size = None
         self.roadmap = None
         self.roadmaps: Dict[Robot, nx.Graph] = {}
         self.collision_detection = {}
@@ -176,7 +179,10 @@ class CoveragePathPlanner(Solver):
             'elite_proportion': ('elite proportion:', 0.1, float),
             'mutation_rate': ('mutation rate:', 0.3, float),
             'cell_size_decrease_interval': ('cell_size_decrease_interval', 5, int),
-            'verbose': ('verbose:', True, bool),
+            'add_remove_mutation_ratio': ('add_remove_mutation_ratio',  0.8, float),
+            'mutation_std': ('mutation_std',  2, float),
+            'random_point_initialization': ('random_point_initialization',  0, int),
+            'verbose': ('verbose:', 1, int),
         }
 
     @staticmethod
@@ -197,6 +203,9 @@ class CoveragePathPlanner(Solver):
                                    d['elite_proportion'],
                                    d['mutation_rate'],
                                    d['cell_size_decrease_interval'],
+                                   d['add_remove_mutation_ratio'],
+                                   d['mutation_std'],
+                                   d['random_point_initialization'],
                                    d['verbose'],
                                    )
 
@@ -337,8 +346,11 @@ class CoveragePathPlanner(Solver):
         return robots_paths
 
     def get_initial_population(self) -> list[list[RobotPath]]:
+        if self.random_point_initialization:
+            self.print("here 1")
+            return [self.get_random_robots_paths() for _ in range(self.population_size)]
+        self.print("here 2")
         return [self.get_shortest_paths() for _ in range(self.population_size)]
-        # return [self.get_random_robots_paths() for _ in range(self.population_size)]
 
     def sample_free(self, robot: Robot):
         """
