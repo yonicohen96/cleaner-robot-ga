@@ -305,6 +305,22 @@ class CoveragePathPlanner(Solver):
                          path=orig_path[:random_point_index - 1] + list(path_to_random)[:-1] + list(path_from_random)[:-1] + orig_path[random_point_index + 1:],
                          cell_size=self.cell_size)
 
+    def remove_random_points(self, robot_path: RobotPath) -> RobotPath:
+        assert len(robot_path.path) >= 3
+        robot = robot_path.robot
+        robot_roadmap = self.roadmaps[robot]
+        points_indices = list(range(len(robot_path.path)))
+        start_point_index = random.choice(points_indices[:-1])
+        end_point_index = random.choice(points_indices[start_point_index + 1:])
+        start_point = robot_path.path[start_point_index]
+        end_point = robot_path.path[end_point_index]
+        shorter_path = nx.algorithms.shortest_path(robot_roadmap, start_point, end_point, weight='weight')
+        orig_path = robot_path.path
+        return RobotPath(robot=robot,
+                         path=orig_path[:start_point_index] + list(shorter_path)[:-1] + orig_path[end_point_index:],
+                         cell_size=self.cell_size)
+
+
     def mutate_gaussian_or_remove(self, crossovers: list[list[RobotPath]]) -> list[list[RobotPath]]:
         mutated_crossovers: list[list[RobotPath]] = []
         for robots_paths in crossovers:
@@ -316,8 +332,7 @@ class CoveragePathPlanner(Solver):
                 if random.random() < self.add_remove_mutation_ratio:
                     new_robot_path = self.add_gaussian_point(robot_path)
                 else:
-                    new_robot_path = self.add_gaussian_point(robot_path)
-                    # TODO replace with this: new_robot_path = self.remove_random_points(robot_path)
+                    new_robot_path = self.remove_random_points(robot_path)
                 mutated_robots_paths.append(new_robot_path)
             mutated_crossovers.append(mutated_robots_paths)
         return mutated_crossovers
