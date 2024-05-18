@@ -99,18 +99,28 @@ def get_scene_string(robots_info: list[RobotDiscInfo], obstacles: list[list[floa
     """)
 
 
-
-def get_basic_scene(filename: str | None) -> str:
+def get_scene_1(filename: str | None) -> str:
     robot1 = RobotDiscInfo(start=(10, 0), end=(-10, 0), radius=1)
     robot2 = RobotDiscInfo(start=(-10, 0), end=(10, 0), radius=1)
     obstacle = [-1, -1, -1, 1, 1, 1, 1, -1]
     bounding_box = BoxBounds(17, -17, -22, 22)
     output_string = get_scene_string([robot1, robot2], [obstacle], bounding_box)
-    write_to_file(filename, output_string)
+    if filename:
+        write_to_file(filename, output_string)
     return output_string
 
 
+def get_scene_2(filename: str | None) -> str:
+    robot1 = RobotDiscInfo(start=(4, 10), end=(36, 10), radius=1)
+    robot2 = RobotDiscInfo(start=(4, 20), end=(36, 20), radius=1)
+    robot3 = RobotDiscInfo(start=(4, 30), end=(36, 30), radius=1)
+    obstacle = [-1, -1, -1, 1, 1, 1, 1, -1]
+    bounding_box = BoxBounds(40, 0, 0, 40)
+    output_string = get_scene_string([robot1, robot2, robot3], [obstacle], bounding_box)
+    if filename:
+        write_to_file(filename, output_string)
+    return output_string
 
 if __name__ == '__main__':
-    get_basic_scene("basic_scene.json")
+    get_scene_2("scene2.json")
 

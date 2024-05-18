@@ -1,5 +1,5 @@
 import unittest
-from cleaner_robot_ga import *
+from coverage_path_planner import *
 import numpy as np
 import numpy.testing as np_testing
 

@@ -1,7 +1,7 @@
 import os.path
 
 import json
-from cleaner_robot_ga import *
+from coverage_path_planner import *
 import pandas as pd
 import datetime
 import itertools
@@ -64,14 +64,14 @@ def run_exp(hyperparams: dict, save: bool = False, output_path: str = "", verbos
         curr_params_dict = {name: combination[idx] for (idx, name) in enumerate(headers)}
         with open(os.path.join("scenes", curr_params_dict[SCENE_FILENAME_OPTION]), 'r') as fp:
             scene = Scene.from_dict(json.load(fp))
-            solver = CleanerRobotGA(population_size=curr_params_dict[POPULATION_SIZE_OPTION],
-                                    evolution_steps=curr_params_dict[EVOLUTION_STEPS_OPTION],
-                                    min_cell_size=curr_params_dict[MIN_CELL_SIZE_OPTION],
-                                    elite_proportion=curr_params_dict[ELITE_PROPORTION_OPTION],
-                                    mutation_rate=curr_params_dict[MUTATION_RATE_OPTION],
-                                    cell_size_decrease_interval=curr_params_dict[CELL_SIZE_DECREASE_INTERVAL_OPTION],
-                                    verbose=verbose
-                                    )
+            solver = CoveragePathPlanner(population_size=curr_params_dict[POPULATION_SIZE_OPTION],
+                                         evolution_steps=curr_params_dict[EVOLUTION_STEPS_OPTION],
+                                         min_cell_size=curr_params_dict[MIN_CELL_SIZE_OPTION],
+                                         elite_proportion=curr_params_dict[ELITE_PROPORTION_OPTION],
+                                         mutation_rate=curr_params_dict[MUTATION_RATE_OPTION],
+                                         cell_size_decrease_interval=curr_params_dict[CELL_SIZE_DECREASE_INTERVAL_OPTION],
+                                         verbose=verbose
+                                         )
             times = []
             fitness_values = []
             for _ in range(curr_params_dict[ITERATION_NUMBER_OPTION]):

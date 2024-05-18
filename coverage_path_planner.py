@@ -98,7 +98,7 @@ def get_fitness(robots_paths: list[RobotPath]) -> float:
     return sum(cells.values())
 
 
-class CleanerRobotGA(Solver):
+class CoveragePathPlanner(Solver):
     """
     The basic implementation of a Probabilistic Road Map (PRM) solver.
     Supports multi-robot motion planning, though might be inefficient for more than
@@ -185,17 +185,17 @@ class CleanerRobotGA(Solver):
         :param d: arguments dict
         :type d: :class:`dict`
         """
-        return CleanerRobotGA(d['num_landmarks'],
-                              d['k'],
-                              FT(d['bounding_margin_width_factor']),
-                              d['population_size'],
-                              d['evolution_steps'],
-                              d['min_cell_size'],
-                              d['elite_proportion'],
-                              d['mutation_rate'],
-                              d['cell_size_decrease_interval'],
-                              d['verbose'],
-                              )
+        return CoveragePathPlanner(d['num_landmarks'],
+                                   d['k'],
+                                   FT(d['bounding_margin_width_factor']),
+                                   d['population_size'],
+                                   d['evolution_steps'],
+                                   d['min_cell_size'],
+                                   d['elite_proportion'],
+                                   d['mutation_rate'],
+                                   d['cell_size_decrease_interval'],
+                                   d['verbose'],
+                                   )
 
     def get_graph(self):
         """
