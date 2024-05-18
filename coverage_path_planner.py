@@ -128,7 +128,7 @@ class CoveragePathPlanner(Solver):
         super().__init__(bounding_margin_width_factor)
 
         # Roadmaps creation attributes
-        self.nearest_neighbors = NearestNeighbors_sklearn()
+        self.nearest_neighbors: dict[Robot, NearestNeighbors_sklearn] = {}
         self.metric = Metric_Euclidean
         self.sampler = Sampler_Uniform()
         self.num_landmarks = num_landmarks
@@ -143,6 +143,9 @@ class CoveragePathPlanner(Solver):
         self.mutation_rate = mutation_rate
         self.cell_size_decrease_interval = cell_size_decrease_interval
         self.cell_size = None
+        # TODO consider adding as arguments
+        self.add_remove_mutation_ratio = 0.8
+        self.mutation_std = 2
 
         # Datastructures initializations
         self.roadmap = None
@@ -254,7 +257,7 @@ class CoveragePathPlanner(Solver):
             break
         return RobotPath(robot=robot, path=new_path, cell_size=self.cell_size)
 
-    def mutate(self, crossovers: list[list[RobotPath]]) -> list[list[RobotPath]]:
+    def mutate_add_sample(self, crossovers: list[list[RobotPath]]) -> list[list[RobotPath]]:
         mutated_crossovers: list[list[RobotPath]] = []
         for robots_paths in crossovers:
             mutated_robots_paths: list[RobotPath] = []
@@ -263,6 +266,50 @@ class CoveragePathPlanner(Solver):
                     mutated_robots_paths.append(self.add_point_to_robot_path(robot_path))
                 else:
                     mutated_robots_paths.append(robot_path)
+            mutated_crossovers.append(mutated_robots_paths)
+        return mutated_crossovers
+
+    def add_gaussian_point(self, robot_path: RobotPath) -> RobotPath:
+        assert len(robot_path.path) >= 3
+        robot = robot_path.robot
+        robot_roadmap = self.roadmaps[robot]
+        robot_nn = self.nearest_neighbors[robot]
+        middle_points_indices = list(range(1, len(robot_path.path) - 1))
+        random_point_index = random.choice(middle_points_indices)
+        random_point = robot_path.path[random_point_index]
+        point_coords = [random_point.x().to_double(), random_point.y().to_double()]
+        random_sample = np.random.multivariate_normal(mean=point_coords,
+                                               cov=np.array([[self.mutation_std, 0], [0, self.mutation_std]]),
+                                               size=1)[0]
+        random_sample_point = Point_2(FT(random_sample[0]), FT(random_sample[1]))
+        random_path_point = robot_nn.k_nearest(random_sample_point, 1)[0]
+        prev_point = robot_path.path[random_point_index - 1]
+        next_point = robot_path.path[random_point_index + 1]
+
+        if not nx.algorithms.has_path(robot_roadmap, prev_point, random_path_point) or not nx.algorithms.has_path(
+            robot_roadmap, random_path_point, next_point):
+            return robot_path
+        path_to_random = nx.algorithms.shortest_path(robot_roadmap, prev_point, random_path_point, weight='weight')
+        path_from_random = nx.algorithms.shortest_path(robot_roadmap, random_path_point, next_point, weight='weight')
+        orig_path = robot_path.path
+        return RobotPath(robot=robot,
+                         path=orig_path[:random_point_index - 1] + list(path_to_random)[:-1] + list(path_from_random)[:-1] + orig_path[random_point_index + 1:],
+                         cell_size=self.cell_size)
+
+    def mutate_gaussian_or_remove(self, crossovers: list[list[RobotPath]]) -> list[list[RobotPath]]:
+        mutated_crossovers: list[list[RobotPath]] = []
+        for robots_paths in crossovers:
+            mutated_robots_paths: list[RobotPath] = []
+            for robot_path in robots_paths:
+                if len(robot_path.path) < 3 or random.random() > self.mutation_rate:
+                    mutated_robots_paths.append(robot_path)
+                    continue
+                if random.random() < self.add_remove_mutation_ratio:
+                    new_robot_path = self.add_gaussian_point(robot_path)
+                else:
+                    new_robot_path = self.add_gaussian_point(robot_path)
+                    # TODO replace with this: new_robot_path = self.remove_random_points(robot_path)
+                mutated_robots_paths.append(new_robot_path)
             mutated_crossovers.append(mutated_robots_paths)
         return mutated_crossovers
 
@@ -281,8 +328,17 @@ class CoveragePathPlanner(Solver):
                                           cell_size=self.cell_size))
         return robots_paths
 
+    def get_shortest_paths(self) -> list[RobotPath]:
+        robots_paths = []
+        for robot in self.scene.robots:
+            robot_roadmap = self.roadmaps[robot]
+            path = nx.algorithms.shortest_path(robot_roadmap, robot.start, robot.end, weight='weight')
+            robots_paths.append(RobotPath(robot=robot, path=list(path), cell_size=self.cell_size))
+        return robots_paths
+
     def get_initial_population(self) -> list[list[RobotPath]]:
-        return [self.get_random_robots_paths() for _ in range(self.population_size)]
+        return [self.get_shortest_paths() for _ in range(self.population_size)]
+        # return [self.get_random_robots_paths() for _ in range(self.population_size)]
 
     def sample_free(self, robot: Robot):
         """
@@ -302,11 +358,12 @@ class CoveragePathPlanner(Solver):
         for i in range(self.num_landmarks):
             robot_roadmap.add_node(self.sample_free(robot))
 
-        self.nearest_neighbors.fit(list(robot_roadmap.nodes))
+        self.nearest_neighbors[robot] = NearestNeighbors_sklearn()
+        self.nearest_neighbors[robot].fit(list(robot_roadmap.nodes))
 
         # Connect all points to their k nearest neighbors
         for cnt, point in enumerate(robot_roadmap.nodes):
-            neighbors = self.nearest_neighbors.k_nearest(point, self.k + 1)
+            neighbors = self.nearest_neighbors[robot].k_nearest(point, self.k + 1)
             for neighbor in neighbors:
                 if self.collision_free(neighbor, point, robot):
                     robot_roadmap.add_edge(point, neighbor, weight=self.metric.dist(point, neighbor).to_double())
@@ -388,7 +445,8 @@ class CoveragePathPlanner(Solver):
 
             # Apply crossover and mutation operators.
             crossover_population = self.crossover(fitness_distribution, self.population_size - self.elite_size)
-            mutated_crossover_population = self.mutate(crossover_population)
+            mutated_crossover_population = self.mutate_gaussian_or_remove(crossover_population)
+            # TODO add option for another mutation.
 
             self.population = elite_population + mutated_crossover_population
 

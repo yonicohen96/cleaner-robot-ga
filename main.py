@@ -160,8 +160,8 @@ def single_debug_experiment():
         MUTATION_RATE_OPTION: [0.5],
         CELL_SIZE_DECREASE_INTERVAL_OPTION: [5]
     }
-    run_exp(hyperparams, save=True, verbose=True)
+    run_exp(hyperparams, save=False, verbose=True)
 
 
 if __name__ == '__main__':
-    first_params_initialization()
+    single_debug_experiment()
