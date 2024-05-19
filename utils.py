@@ -1,10 +1,12 @@
-from discopygal.solvers import  PathCollection
-from discopygal.solvers.metrics import Metric_Euclidean
 import multiprocessing
-import time
+import random
+from typing import Any
 from typing import Callable
+
 import numpy as np
 from discopygal.bindings import Point_2
+from discopygal.solvers import PathCollection
+from discopygal.solvers.metrics import Metric_Euclidean
 
 
 def get_point2_list_length(points: list[Point_2]) -> float:
@@ -51,4 +53,34 @@ def get_cell_indices(point: Point_2, division_factor: float) -> tuple[int, int]:
             int(get_coord_index(point.y().to_double(), division_factor)))
 
 
+def get_distribution(arr: np.ndarray, opposite_values=False) -> np.ndarray:
+    """
+    Given an array with non-negative values, derive a distribution which is proportional to the values of the array
+    after shifting them so that the minimum value is 0.
+    :param arr: The array with the non-negative values.
+    :param opposite_values: Whether a smaller value in arr should get a higher probability.
+    :return: The derived distribution.
+    """
+    scores = arr.max() - arr if opposite_values else arr - arr.min()
+    if scores.max() == scores.min():
+        return np.full(scores.size, 1 / scores.size)
+    return scores / scores.sum()
 
+
+def get_highest_k_indices(values: list | np.ndarray, k: int) -> list[int]:
+    sorted_indices = sorted(range(len(values)), key=lambda i: values[i], reverse=True)
+    return sorted_indices[:k]
+
+
+def random_choices_no_repetitions(population: list[Any], weights: list[float] | np.ndarray, k: int) -> list[Any]:
+    assert len(population) == len(weights)
+    weights = weights.copy()
+    result = []
+    population_indices = list(range(len(population)))
+    for i in range(k):
+        selected_item_idx = random.choices(population=population_indices, weights=weights, k=1)[0]
+        result.append(population[selected_item_idx])
+        weights[selected_item_idx] = 0
+        if sum(weights) == 0:
+            weights = np.full(len(weights), 1 / len(weights))
+    return result

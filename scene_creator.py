@@ -1,5 +1,5 @@
-from dataclasses import dataclass
 import os
+from dataclasses import dataclass
 
 SCENES_DIR = "scenes"
 
@@ -9,6 +9,7 @@ class RobotDiscInfo:
     start: tuple[float, float]
     end: tuple[float, float]
     radius: float
+
 
 def _unpack_points(points: list[tuple[float, float]]):
     result = []
@@ -23,6 +24,7 @@ def get_point_string(x, y):
                     {x},
                     {y}
                 ]"""
+
 
 def get_obstacle_string(points: list[float]):
     poly_points = [get_point_string(points[idx], points[idx + 1]) for idx in range(0, len(points), 2)]
@@ -60,7 +62,6 @@ def get_bounding_box_string(Box: BoxBounds) -> str:
     return ",".join(obstacles_strings)
 
 
-
 def get_robot_string(robot_info: RobotDiscInfo):
     return (f"""
     {{
@@ -77,6 +78,7 @@ def get_robot_string(robot_info: RobotDiscInfo):
       "data": {{}}
     }}""")
 
+
 def write_to_file(filename, text):
     # Check if the directory exists, if not, create it
     if not os.path.exists(SCENES_DIR):
@@ -85,6 +87,7 @@ def write_to_file(filename, text):
     # Write the text to the file
     with open(os.path.join(SCENES_DIR, filename), 'w') as file:
         file.write(text)
+
 
 def get_scene_string(robots_info: list[RobotDiscInfo], obstacles: list[list[float]], box_bounds: BoxBounds):
     robots_string = ",\n".join([get_robot_string(robot_info) for robot_info in robots_info])
@@ -143,6 +146,6 @@ def get_scene_3(filename: str | None) -> str:
         write_to_file(filename, output_string)
     return output_string
 
+
 if __name__ == '__main__':
     get_scene_1("scene1.json")
-

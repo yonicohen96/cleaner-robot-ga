@@ -1,14 +1,16 @@
-import os.path
-
-import json
-from coverage_path_planner import *
-import pandas as pd
 import datetime
 import itertools
+import json
+import os.path
+import time
+
+import pandas as pd
 import tqdm
-from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.model_selection import train_test_split
+
+from coverage_path_planner import *
 
 SCENE_FILENAME_OPTION = 'scene_filename'
 ITERATION_NUMBER_OPTION = 'iteration_number'
@@ -69,7 +71,8 @@ def run_exp(hyperparams: dict, save: bool = False, output_path: str = "", verbos
                                          min_cell_size=curr_params_dict[MIN_CELL_SIZE_OPTION],
                                          elite_proportion=curr_params_dict[ELITE_PROPORTION_OPTION],
                                          mutation_rate=curr_params_dict[MUTATION_RATE_OPTION],
-                                         cell_size_decrease_interval=curr_params_dict[CELL_SIZE_DECREASE_INTERVAL_OPTION],
+                                         cell_size_decrease_interval=curr_params_dict[
+                                             CELL_SIZE_DECREASE_INTERVAL_OPTION],
                                          verbose=verbose
                                          )
             times = []
@@ -92,20 +95,6 @@ def run_exp(hyperparams: dict, save: bool = False, output_path: str = "", verbos
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         df.to_csv(output_path, index=False)
     return df
-
-
-def first_params_initialization():
-    hyperparams = {
-        SCENE_FILENAME_OPTION: ["scene1.json"],
-        ITERATION_NUMBER_OPTION: [2],
-        POPULATION_SIZE_OPTION: [10, 20],
-        EVOLUTION_STEPS_OPTION: [20, 40],
-        MIN_CELL_SIZE_OPTION: [1.0],
-        ELITE_PROPORTION_OPTION: [0.1, 0.5],
-        MUTATION_RATE_OPTION: [0.1, 0.5, 0.9],
-        CELL_SIZE_DECREASE_INTERVAL_OPTION: [5, 10],
-    }
-    run_exp(hyperparams, save=True, verbose=False)
 
 
 def get_coef(filename):
@@ -139,14 +128,26 @@ def get_coef(filename):
 
 
 def get_correlation():
-    import pandas as pd
-
     # Step 1: Read the CSV file into a pandas DataFrame
     data = pd.read_csv(os.path.join("out", "240514-2048.csv"))
 
     # Step 2: Separate the features (A, B, C) and the target variable (D)
     X = data[NUMERICAL_OPTIONS_LIST + [AVG_TIME_FIELD, AVG_FITNESS_FIELD]]
     print(X.corr().to_csv("out/correlation.csv"))
+
+
+def first_params_initialization():
+    hyperparams = {
+        SCENE_FILENAME_OPTION: ["scene1.json"],
+        ITERATION_NUMBER_OPTION: [2],
+        POPULATION_SIZE_OPTION: [10, 20],
+        EVOLUTION_STEPS_OPTION: [20, 40],
+        MIN_CELL_SIZE_OPTION: [1.0],
+        ELITE_PROPORTION_OPTION: [0.1, 0.5],
+        MUTATION_RATE_OPTION: [0.1, 0.5, 0.9],
+        CELL_SIZE_DECREASE_INTERVAL_OPTION: [5, 10],
+    }
+    run_exp(hyperparams, save=True, verbose=False)
 
 
 def single_debug_experiment():

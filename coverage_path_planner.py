@@ -1,70 +1,28 @@
+import math
+from dataclasses import dataclass
+from typing import Dict
+
 import networkx as nx
-from discopygal.solvers import Robot
-from discopygal.solvers import Scene
-from discopygal.solvers import PathPoint, Path
-from discopygal.solvers.samplers import Sampler_Uniform
-from discopygal.solvers.nearest_neighbors import NearestNeighbors_sklearn
 from discopygal.bindings import *
 from discopygal.geometry_utils import collision_detection
+from discopygal.solvers import PathPoint, Path
+from discopygal.solvers import Robot
+from discopygal.solvers import Scene
 from discopygal.solvers.Solver import Solver
-from typing import Dict, Any
-import random
-from dataclasses import dataclass
+from discopygal.solvers.nearest_neighbors import NearestNeighbors_sklearn
+from discopygal.solvers.samplers import Sampler_Uniform
+
 from utils import *
-import math
 
-
-# TODO add _ to private functions.
 
 @dataclass
 class RobotPath:
     def __init__(self, robot: Robot, path: list[Point_2], cell_size: float):
         self.robot: Robot = robot
         self.path: list[Point_2] = path
-        self.path_length: float = get_point2_list_length(self.path)
         self.cells = set()
         for point in self.path:
             self.cells.add(get_cell_indices(point, cell_size))
-
-    def print_summary(self, writer, robot_idx: int):
-        print(
-            f"Robot: {robot_idx}"
-            f"\n\tPath length: {self.path_length}"
-            f"\n\tPath cells: {len(self.cells)}",
-            file=writer)
-
-
-def get_distribution(arr: np.ndarray, opposite_values=False) -> np.ndarray:
-    """
-    Given an array with non-negative values, derive a distribution which is proportional to the values of the array
-    after shifting them so that the minimum value is 0.
-    :param arr: The array with the non-negative values.
-    :param opposite_values: Whether a smaller value in arr should get a higher probability.
-    :return: The derived distribution.
-    """
-    scores = arr.max() - arr if opposite_values else arr - arr.min()
-    if scores.max() == scores.min():
-        return np.full(scores.size, 1 / scores.size)
-    return scores / scores.sum()
-
-
-def get_highest_k_indices(values: list | np.ndarray, k: int) -> list[int]:
-    sorted_indices = sorted(range(len(values)), key=lambda i: values[i], reverse=True)
-    return sorted_indices[:k]
-
-
-def random_choices_no_repetitions(population: list[Any], weights: list[float] | np.ndarray, k: int) -> list[Any]:
-    assert len(population) == len(weights)
-    weights = weights.copy()
-    result = []
-    population_indices = list(range(len(population)))
-    for i in range(k):
-        selected_item_idx = random.choices(population=population_indices, weights=weights, k=1)[0]
-        result.append(population[selected_item_idx])
-        weights[selected_item_idx] = 0
-        if sum(weights) == 0:
-            weights = np.full(len(weights), 1 / len(weights))
-    return result
 
 
 def get_fitness(robots_paths: list[RobotPath]) -> float:
@@ -163,9 +121,9 @@ class CoveragePathPlanner(Solver):
             'elite_proportion': ('elite proportion:', 0.1, float),
             'mutation_rate': ('mutation rate:', 0.3, float),
             'cell_size_decrease_interval': ('cell_size_decrease_interval', 5, int),
-            'add_remove_mutation_ratio': ('add_remove_mutation_ratio',  0.8, float),
-            'mutation_std': ('mutation_std',  2, float),
-            'random_point_initialization': ('random_point_initialization',  0, int),
+            'add_remove_mutation_ratio': ('add_remove_mutation_ratio', 0.8, float),
+            'mutation_std': ('mutation_std', 2, float),
+            'random_point_initialization': ('random_point_initialization', 0, int),
             'crossover_merge': ('crossover_merge', 0, int),
             'mutate_gauss': ('mutate_gauss', 1, int),
             'verbose': ('verbose:', 1, int),
@@ -313,21 +271,23 @@ class CoveragePathPlanner(Solver):
         random_point = robot_path.path[random_point_index]
         point_coords = [random_point.x().to_double(), random_point.y().to_double()]
         random_sample = np.random.multivariate_normal(mean=point_coords,
-                                               cov=np.array([[self.mutation_std, 0], [0, self.mutation_std]]),
-                                               size=1)[0]
+                                                      cov=np.array([[self.mutation_std, 0], [0, self.mutation_std]]),
+                                                      size=1)[0]
         random_sample_point = Point_2(FT(random_sample[0]), FT(random_sample[1]))
         random_path_point = robot_nn.k_nearest(random_sample_point, 1)[0]
         prev_point = robot_path.path[random_point_index - 1]
         next_point = robot_path.path[random_point_index + 1]
 
         if not nx.algorithms.has_path(robot_roadmap, prev_point, random_path_point) or not nx.algorithms.has_path(
-            robot_roadmap, random_path_point, next_point):
+                robot_roadmap, random_path_point, next_point):
             return robot_path
         path_to_random = nx.algorithms.shortest_path(robot_roadmap, prev_point, random_path_point, weight='weight')
         path_from_random = nx.algorithms.shortest_path(robot_roadmap, random_path_point, next_point, weight='weight')
         orig_path = robot_path.path
         return RobotPath(robot=robot,
-                         path=orig_path[:random_point_index - 1] + list(path_to_random)[:-1] + list(path_from_random)[:-1] + orig_path[random_point_index + 1:],
+                         path=orig_path[:random_point_index - 1] + list(path_to_random)[:-1] + list(path_from_random)[
+                                                                                               :-1] + orig_path[
+                                                                                                      random_point_index + 1:],
                          cell_size=self.cell_size)
 
     def remove_random_points(self, robot_path: RobotPath) -> RobotPath:
