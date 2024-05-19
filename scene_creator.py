@@ -145,5 +145,4 @@ def get_scene_3(filename: str | None) -> str:
 
 if __name__ == '__main__':
     get_scene_1("scene1.json")
-    # get_scene_3("scene3.json")
 

@@ -96,7 +96,7 @@ def run_exp(hyperparams: dict, save: bool = False, output_path: str = "", verbos
 
 def first_params_initialization():
     hyperparams = {
-        SCENE_FILENAME_OPTION: ["basic_scene.json"],
+        SCENE_FILENAME_OPTION: ["scene1.json"],
         ITERATION_NUMBER_OPTION: [2],
         POPULATION_SIZE_OPTION: [10, 20],
         EVOLUTION_STEPS_OPTION: [20, 40],
