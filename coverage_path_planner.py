@@ -17,6 +17,9 @@ from utils import *
 
 @dataclass
 class RobotPath:
+    """
+    A dataclass that represents a robot and a path, and includes the cells that contain the path's points.
+    """
     def __init__(self, robot: Robot, path: list[Point_2], cell_size: float):
         self.robot: Robot = robot
         self.path: list[Point_2] = path
@@ -26,6 +29,11 @@ class RobotPath:
 
 
 def get_fitness(robots_paths: list[RobotPath]) -> float:
+    """
+    Returns the fitness of a list of robots paths which is the number of cells visited by only a single robot.
+    :param robots_paths: A list of RobotPath objects.
+    :return: The fitness value for the given list of robots paths.
+    """
     cells = dict()
     for robot_path in robots_paths:
         for cell in robot_path.cells:
@@ -38,15 +46,13 @@ def get_fitness(robots_paths: list[RobotPath]) -> float:
 
 class CoveragePathPlanner(Solver):
     """
-    The basic implementation of a Probabilistic Road Map (PRM) solver.
-    Supports multi-robot motion planning, though might be inefficient for more than
-    two-three robots.
+    A solver class for the Coverage Path planning problem that uses a genetic algorithm approach.
+    Supports multiple robots scenarios.
 
     :param num_landmarks: number of landmarks to sample
     :type num_landmarks: :class:`int`
     :param k: number of nearest neighbors to connect
     :type k: :class:`int`
-
     """
 
     def __init__(self,
@@ -56,14 +62,14 @@ class CoveragePathPlanner(Solver):
                  population_size: int = 10,
                  evolution_steps: int = 20,
                  min_cell_size: float = 1.0,
-                 elite_proportion: float = 0.1,
-                 mutation_rate: float = 0.3,
                  cell_size_decrease_interval: int = 5,
+                 random_point_initialization: int = 0,
+                 elite_proportion: float = 0.1,
+                 crossover_merge: int = 0,
+                 mutation_rate: float = 0.3,
+                 mutate_gauss: int = 1,
                  add_remove_mutation_ratio: float = 0.8,
                  mutation_std: float = 2,
-                 random_point_initialization: int = 0,
-                 crossover_merge: int = 0,
-                 mutate_gauss: int = 1,
                  verbose: int = 1):
         assert population_size > 1
         # Check that elite population is not the entire population.
@@ -81,15 +87,15 @@ class CoveragePathPlanner(Solver):
         self.population_size = population_size
         self.evolution_steps = evolution_steps
         self.min_cell_size = min_cell_size
+        self.cell_size_decrease_interval = cell_size_decrease_interval
+        self.random_point_initialization = random_point_initialization
         self.elite_proportion = elite_proportion
         self.elite_size = int(elite_proportion * self.population_size)
+        self.crossover_merge = crossover_merge
         self.mutation_rate = mutation_rate
-        self.cell_size_decrease_interval = cell_size_decrease_interval
+        self.mutate_gauss = mutate_gauss
         self.add_remove_mutation_ratio = add_remove_mutation_ratio
         self.mutation_std = mutation_std
-        self.random_point_initialization = random_point_initialization
-        self.crossover_merge = crossover_merge
-        self.mutate_gauss = mutate_gauss
 
         # Datastructures initializations
         self.cell_size = None
@@ -118,14 +124,14 @@ class CoveragePathPlanner(Solver):
             'population_size': ('population size:', 10, int),
             'evolution_steps': ('evolution steps:', 20, int),
             'min_cell_size': ('min cell size:', 1.0, float),
-            'elite_proportion': ('elite proportion:', 0.1, float),
-            'mutation_rate': ('mutation rate:', 0.3, float),
             'cell_size_decrease_interval': ('cell_size_decrease_interval', 5, int),
+            'random_point_initialization': ('random_point_initialization', 0, int),
+            'elite_proportion': ('elite proportion:', 0.1, float),
+            'crossover_merge': ('crossover_merge', 0, int),
+            'mutation_rate': ('mutation rate:', 0.3, float),
+            'mutate_gauss': ('mutate_gauss', 1, int),
             'add_remove_mutation_ratio': ('add_remove_mutation_ratio', 0.8, float),
             'mutation_std': ('mutation_std', 2, float),
-            'random_point_initialization': ('random_point_initialization', 0, int),
-            'crossover_merge': ('crossover_merge', 0, int),
-            'mutate_gauss': ('mutate_gauss', 1, int),
             'verbose': ('verbose:', 1, int),
         }
 
@@ -144,14 +150,14 @@ class CoveragePathPlanner(Solver):
                                    d['population_size'],
                                    d['evolution_steps'],
                                    d['min_cell_size'],
-                                   d['elite_proportion'],
-                                   d['mutation_rate'],
                                    d['cell_size_decrease_interval'],
+                                   d['random_point_initialization'],
+                                   d['elite_proportion'],
+                                   d['crossover_merge'],
+                                   d['mutation_rate'],
+                                   d['mutate_gauss'],
                                    d['add_remove_mutation_ratio'],
                                    d['mutation_std'],
-                                   d['random_point_initialization'],
-                                   d['crossover_merge'],
-                                   d['mutate_gauss'],
                                    d['verbose'],
                                    )
 
