@@ -53,6 +53,51 @@ class CoveragePathPlanner(Solver):
     :type num_landmarks: :class:`int`
     :param k: number of nearest neighbors to connect
     :type k: :class:`int`
+    :param bounding_margin_width_factor: The margin width factor for the bounding box.
+    :type bounding_margin_width_factor: :class:`int`
+    :param population_size: The number of individuals (lists of robots paths) for the genetic algorithm.
+    :type population_size: :class:`int`
+    :param evolution_steps: The number of evolutions steps.
+    :type evolution_steps: :class:`int`
+    :param min_cell_size: The minimum cell size: the cell size decreases during evolution steps, and this value is the
+     minimal cell size allowed.
+    :type min_cell_size: :class:`float`
+    :param cell_size_decrease_interval: This parameter determines the number of evolution steps with the same maximum
+    fitness value after which the cell size decreases.
+    :type cell_size_decrease_interval: :class:`int`
+    :param final_steps_num: The minimum number of last steps for which the cell size is set to `min_cell_size`
+    :type final_steps_num: :class:`int`
+    :param random_point_initialization: Whether the initial population is randomly initialized. If True, each individual
+     contains robots paths, each one is the shortest path from the start point to the end point of the robot, that
+     passes through a random free point.
+    :type random_point_initialization: :class:`int`
+    :param elite_proportion: The portion of the population with the highest fitness values that is copied to the next
+     generation.
+    :type elite_proportion: :class:`float`
+    :param crossover_merge: Whether to use a merging strategy in the crossover operator (1 to use this operator and 0 to
+     not use it). This operator returns a new robot path by merging the two selected parents robot paths. The merged
+     path consists of three parts: (1) The path of the first parent for the start point to a random point. (2) The
+     shortest path from the latter random point to another random point in the second parent's path, and (3) the path
+     of the second parent for the selected random point to the end point.
+     If this operator is not used, then the path of the crossover is copied from one of the parents which is chosen
+     randomly.
+    :type crossover_merge: :class:`int`
+    :param mutation_rate: The portion of the crossover individual on which the mutation operator is applied.
+    :type mutation_rate: :class:`float`
+    :param mutate_gauss: Whether to use a gaussian sampling strategy for mutation. If the value is 1, then the mutation
+     is applied by choosing a random point for each robot path, and sample a random point from a gaussian distribution
+     (centered at the original point, with standard deviation that is determined with another parameter) and replacing
+     the original point with the new point (and connecting it to the previous and next points in the path by shortest
+     paths).
+    :type mutate_gauss: :class:`int`
+    :param add_remove_mutation_ratio: The ratio between the number of times the mutation operator adds a new point to
+     the path to the number of times the mutation operator selects two random points from the path and connect them by
+     the shortest path, and by that aims to shorten the path.
+    :type add_remove_mutation_ratio: :class:`float`
+    :param mutation_std: The standard deviation for the gaussian mutation startegy.
+    :type mutation_std: :class:`float`
+    :param verbose: Whether to print the results.
+    :type verbose: :class:`int`
     """
 
     def __init__(self,
@@ -63,6 +108,7 @@ class CoveragePathPlanner(Solver):
                  evolution_steps: int = 20,
                  min_cell_size: float = 1.0,
                  cell_size_decrease_interval: int = 5,
+                 final_steps_num: int = 10,
                  random_point_initialization: int = 0,
                  elite_proportion: float = 0.1,
                  crossover_merge: int = 0,
@@ -88,6 +134,7 @@ class CoveragePathPlanner(Solver):
         self.evolution_steps = evolution_steps
         self.min_cell_size = min_cell_size
         self.cell_size_decrease_interval = cell_size_decrease_interval
+        self.final_steps_num = final_steps_num
         self.random_point_initialization = random_point_initialization
         self.elite_proportion = elite_proportion
         self.elite_size = int(elite_proportion * self.population_size)
@@ -125,6 +172,7 @@ class CoveragePathPlanner(Solver):
             'evolution_steps': ('evolution steps:', 20, int),
             'min_cell_size': ('min cell size:', 1.0, float),
             'cell_size_decrease_interval': ('cell_size_decrease_interval', 5, int),
+            'final_steps_num': ('final_steps_num', 10, int),
             'random_point_initialization': ('random_point_initialization', 0, int),
             'elite_proportion': ('elite proportion:', 0.1, float),
             'crossover_merge': ('crossover_merge', 0, int),
@@ -151,6 +199,7 @@ class CoveragePathPlanner(Solver):
                                    d['evolution_steps'],
                                    d['min_cell_size'],
                                    d['cell_size_decrease_interval'],
+                                   d['final_steps_num'],
                                    d['random_point_initialization'],
                                    d['elite_proportion'],
                                    d['crossover_merge'],
@@ -199,6 +248,7 @@ class CoveragePathPlanner(Solver):
                 path=path_start + path_middle[:-1] + path_end,
                 cell_size=self.cell_size)
             return merged_robot_path
+        return parent_0_robot_path
 
     def crossover_with_merge(self, fitness_distribution: np.ndarray, num_individuals: int) -> list[list[RobotPath]]:
         crossovers = []
@@ -448,10 +498,10 @@ class CoveragePathPlanner(Solver):
         for step in range(self.evolution_steps):
             self.print(f'\tevolution step {step + 1}/{self.evolution_steps}')
 
-            # In the last `self.cell_size_decrease_interval` steps, change the cell size to min_cell_size: the final
+            # In the last `self.final_steps_num` steps, change the cell size to min_cell_size: the final
             # fitness value is computed with respect to cell size of self.min_cell_size, so in the last iteration we
             # should perform evolution with the target of maximizing the final fitness function.
-            if step >= self.evolution_steps - self.cell_size_decrease_interval:
+            if step >= self.evolution_steps - self.final_steps_num:
                 self.updated_cell_size(self.min_cell_size)
 
             # Compute fitness value.
