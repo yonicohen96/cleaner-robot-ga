@@ -4,6 +4,12 @@ import os
 SCENES_DIR = "scenes"
 
 
+@dataclass
+class RobotDiscInfo:
+    start: tuple[float, float]
+    end: tuple[float, float]
+    radius: float
+
 def _unpack_points(points: list[tuple[float, float]]):
     result = []
     for point in points:
@@ -53,12 +59,6 @@ def get_bounding_box_string(Box: BoxBounds) -> str:
         obstacles_strings.append(get_obstacle_string(points))
     return ",".join(obstacles_strings)
 
-
-@dataclass
-class RobotDiscInfo:
-    start: tuple[float, float]
-    end: tuple[float, float]
-    radius: float
 
 
 def get_robot_string(robot_info: RobotDiscInfo):
@@ -144,5 +144,6 @@ def get_scene_3(filename: str | None) -> str:
     return output_string
 
 if __name__ == '__main__':
-    get_scene_3("scene3.json")
+    get_scene_1("scene1.json")
+    # get_scene_3("scene3.json")
 

@@ -345,14 +345,24 @@ class CoveragePathPlanner(Solver):
                          path=orig_path[:start_point_index] + list(shorter_path)[:-1] + orig_path[end_point_index:],
                          cell_size=self.cell_size)
 
+    def add_middle_point(self, robot_path: RobotPath) -> RobotPath:
+        if len(robot_path.path) >= 3:
+            return robot_path
+        else:
+            return RobotPath(robot=robot_path.robot,
+                             path=[robot_path.robot.start, robot_path.robot.end, robot_path.robot.end],
+                             cell_size=self.cell_size)
+
     def mutate_gaussian_or_remove(self, crossovers: list[list[RobotPath]]) -> list[list[RobotPath]]:
         mutated_crossovers: list[list[RobotPath]] = []
         for robots_paths in crossovers:
             mutated_robots_paths: list[RobotPath] = []
             for robot_path in robots_paths:
-                if len(robot_path.path) < 3 or random.random() > self.mutation_rate:
+                if random.random() > self.mutation_rate:
                     mutated_robots_paths.append(robot_path)
                     continue
+                # For the mutation operation below, the path should contain at least three points.
+                robot_path = self.add_middle_point(robot_path)
                 if random.random() < self.add_remove_mutation_ratio:
                     new_robot_path = self.add_gaussian_point(robot_path)
                 else:
@@ -386,9 +396,7 @@ class CoveragePathPlanner(Solver):
 
     def get_initial_population(self) -> list[list[RobotPath]]:
         if self.random_point_initialization:
-            self.print("here 1")
             return [self.get_random_robots_paths() for _ in range(self.population_size)]
-        self.print("here 2")
         return [self.get_shortest_paths() for _ in range(self.population_size)]
 
     def sample_free(self, robot: Robot):

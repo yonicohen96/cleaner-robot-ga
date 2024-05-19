@@ -151,7 +151,7 @@ def get_correlation():
 
 def single_debug_experiment():
     hyperparams = {
-        SCENE_FILENAME_OPTION: ["basic_scene.json"],
+        SCENE_FILENAME_OPTION: ["scene3.json"],
         ITERATION_NUMBER_OPTION: [1],
         POPULATION_SIZE_OPTION: [10],
         EVOLUTION_STEPS_OPTION: [50],
