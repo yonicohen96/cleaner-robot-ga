@@ -121,6 +121,28 @@ def get_scene_2(filename: str | None) -> str:
         write_to_file(filename, output_string)
     return output_string
 
+
+def get_scene_3(filename: str | None) -> str:
+    robot1 = RobotDiscInfo(start=(20, 12), end=(20, 12), radius=1)
+    robot2 = RobotDiscInfo(start=(20, 12), end=(20, 12), radius=1)
+    robot3 = RobotDiscInfo(start=(20, 12), end=(20, 12), radius=1)
+    robot4 = RobotDiscInfo(start=(20, 12), end=(20, 12), radius=1)
+    obstacles = [
+        [5, 5, 15, 5, 15, 6, 5, 6],
+        [0, 11, 15, 11, 15, 12, 0, 12],
+        [5, 18, 10, 18, 10, 23, 5, 23],
+        [15, 18, 16, 18, 16, 30, 15, 30],
+        [25, 0, 26, 0, 26, 6, 25, 6],
+        [25, 12, 26, 12, 26, 30, 25, 30],
+        [40, 0, 50, 0, 50, 5, 40, 5],
+        [35, 18, 40, 18, 40, 23, 35, 23]
+    ]
+    bounding_box = BoxBounds(30, 0, 0, 50)
+    output_string = get_scene_string([robot1, robot2, robot3, robot4], obstacles, bounding_box)
+    if filename:
+        write_to_file(filename, output_string)
+    return output_string
+
 if __name__ == '__main__':
-    get_scene_2("scene2.json")
+    get_scene_3("scene3.json")
 

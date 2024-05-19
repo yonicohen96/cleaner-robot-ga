@@ -2,7 +2,6 @@ import networkx as nx
 from discopygal.solvers import Robot
 from discopygal.solvers import Scene
 from discopygal.solvers import PathPoint, Path
-
 from discopygal.solvers.samplers import Sampler_Uniform
 from discopygal.solvers.nearest_neighbors import NearestNeighbors_sklearn
 from discopygal.bindings import *

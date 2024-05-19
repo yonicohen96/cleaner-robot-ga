@@ -5,30 +5,6 @@
         "__class__": "ObstaclePolygon",
         "poly": [
                 [
-                    -1,
-                    -1
-                ],
-                [
-                    -1,
-                    1
-                ],
-                [
-                    1,
-                    1
-                ],
-                [
-                    1,
-                    -1
-                ]
-        ],
-        "data": {
-        }
-    },
-
-    {
-        "__class__": "ObstaclePolygon",
-        "poly": [
-                [
                     0,
                     40
                 ],
