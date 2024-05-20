@@ -17,17 +17,31 @@ ITERATION_NUMBER_OPTION = 'iteration_number'
 POPULATION_SIZE_OPTION = 'population_size'
 EVOLUTION_STEPS_OPTION = 'evolution_steps'
 MIN_CELL_SIZE_OPTION = 'min_cell_size'
-ELITE_PROPORTION_OPTION = 'elite_proportion'
-MUTATION_RATE_OPTION = 'mutation_rate'
 CELL_SIZE_DECREASE_INTERVAL_OPTION = 'cell_size_decrease_interval'
+FINAL_STEPS_NUM_OPTION = 'final_steps_num'
+RANDOM_POINT_INITIALIZATION_OPTION = 'random_point_initialization'
+ELITE_PROPORTION_OPTION = 'elite_proportion'
+CROSSOVER_MERGE_OPTION = 'crossover_merge'
+MUTATION_RATE_OPTION = 'mutation_rate'
+MUTATE_GAUSS_OPTION = 'mutate_gauss'
+ADD_REMOVE_MUTATION_RATIO_OPTION = 'add_remove_mutation_ratio'
+MUTATION_STD_OPTION = 'mutation_st'
+
 NUMERICAL_OPTIONS_LIST = [
+    SCENE_FILENAME_OPTION,
     ITERATION_NUMBER_OPTION,
     POPULATION_SIZE_OPTION,
     EVOLUTION_STEPS_OPTION,
     MIN_CELL_SIZE_OPTION,
-    ELITE_PROPORTION_OPTION,
-    MUTATION_RATE_OPTION,
     CELL_SIZE_DECREASE_INTERVAL_OPTION,
+    FINAL_STEPS_NUM_OPTION,
+    RANDOM_POINT_INITIALIZATION_OPTION,
+    ELITE_PROPORTION_OPTION,
+    CROSSOVER_MERGE_OPTION,
+    MUTATION_RATE_OPTION,
+    MUTATE_GAUSS_OPTION,
+    ADD_REMOVE_MUTATION_RATIO_OPTION,
+    MUTATION_STD_OPTION,
 ]
 AVG_TIME_FIELD = "avg_time"
 AVG_FITNESS_FIELD = "avg_fitness"
@@ -69,12 +83,20 @@ def run_exp(hyperparams: dict, save: bool = False, output_path: str = "", verbos
             solver = CoveragePathPlanner(population_size=curr_params_dict[POPULATION_SIZE_OPTION],
                                          evolution_steps=curr_params_dict[EVOLUTION_STEPS_OPTION],
                                          min_cell_size=curr_params_dict[MIN_CELL_SIZE_OPTION],
-                                         elite_proportion=curr_params_dict[ELITE_PROPORTION_OPTION],
-                                         mutation_rate=curr_params_dict[MUTATION_RATE_OPTION],
                                          cell_size_decrease_interval=curr_params_dict[
                                              CELL_SIZE_DECREASE_INTERVAL_OPTION],
+                                         final_steps_num=curr_params_dict[FINAL_STEPS_NUM_OPTION],
+                                         random_point_initialization=curr_params_dict[
+                                             RANDOM_POINT_INITIALIZATION_OPTION],
+                                         elite_proportion=curr_params_dict[ELITE_PROPORTION_OPTION],
+                                         crossover_merge=curr_params_dict[CROSSOVER_MERGE_OPTION],
+                                         mutation_rate=curr_params_dict[MUTATION_RATE_OPTION],
+                                         mutate_gauss=curr_params_dict[MUTATE_GAUSS_OPTION],
+                                         add_remove_mutation_ratio=curr_params_dict[ADD_REMOVE_MUTATION_RATIO_OPTION],
+                                         mutation_std=curr_params_dict[MUTATION_STD_OPTION],
                                          verbose=verbose
                                          )
+
             times = []
             fitness_values = []
             for _ in range(curr_params_dict[ITERATION_NUMBER_OPTION]):
@@ -90,7 +112,7 @@ def run_exp(hyperparams: dict, save: bool = False, output_path: str = "", verbos
 
             result.append(list(combination) + [avg_time, avg_fitness])
 
-    df = pd.DataFrame(result, columns=headers + [AVG_TIME_FIELD, AVG_FITNESS_FIELD])
+    df = pd.DataFrame(data=result, columns=headers + [AVG_TIME_FIELD, AVG_FITNESS_FIELD])
     if save:
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         df.to_csv(output_path, index=False)
@@ -150,19 +172,26 @@ def first_params_initialization():
     run_exp(hyperparams, save=True, verbose=False)
 
 
-def single_debug_experiment():
+def single_debug_experiment(save: bool):
     hyperparams = {
         SCENE_FILENAME_OPTION: ["scene3.json"],
         ITERATION_NUMBER_OPTION: [1],
         POPULATION_SIZE_OPTION: [10],
         EVOLUTION_STEPS_OPTION: [50],
         MIN_CELL_SIZE_OPTION: [1.0],
+        CELL_SIZE_DECREASE_INTERVAL_OPTION: [5],
+        FINAL_STEPS_NUM_OPTION: [10],
+        RANDOM_POINT_INITIALIZATION_OPTION: [0],
         ELITE_PROPORTION_OPTION: [0.1],
+        CROSSOVER_MERGE_OPTION: [0],
         MUTATION_RATE_OPTION: [0.5],
-        CELL_SIZE_DECREASE_INTERVAL_OPTION: [5]
+        MUTATE_GAUSS_OPTION: [1],
+        ADD_REMOVE_MUTATION_RATIO_OPTION: [0.8],
+        MUTATION_STD_OPTION: [2],
     }
-    run_exp(hyperparams, save=False, verbose=True)
+
+    run_exp(hyperparams, save=save, verbose=True)
 
 
 if __name__ == '__main__':
-    single_debug_experiment()
+    single_debug_experiment(True)
