@@ -66,7 +66,7 @@ class CoveragePathPlanner(Solver):
      minimal cell size allowed.
     :type min_cell_size: :class:`float`
     :param cell_size_decrease_interval: This parameter determines the number of evolution steps with the same maximum
-    fitness value after which the cell size decreases.
+     fitness value after which the cell size decreases.
     :type cell_size_decrease_interval: :class:`int`
     :param final_steps_num: The minimum number of last steps for which the cell size is set to `min_cell_size`
     :type final_steps_num: :class:`int`
@@ -88,8 +88,8 @@ class CoveragePathPlanner(Solver):
     :param mutation_rate: The portion of the crossover individual on which the mutation operator is applied.
     :type mutation_rate: :class:`float`
     :param mutate_gauss: Whether to use a gaussian sampling strategy for mutation. If the value is 1, then the mutation
-     is applied by choosing a random point for each robot path, and sample a random point from a gaussian distribution
-     (centered at the original point, with standard deviation that is determined with another parameter) and replacing
+     is applied by choosing a random point for each robot path, and sampling a random point from a gaussian distribution
+     (centered at the original point, with a standard deviation that is determined by another parameter) and replacing
      the original point with the new point (and connecting it to the previous and next points in the path by shortest
      paths).
     :type mutate_gauss: :class:`int`
@@ -97,7 +97,7 @@ class CoveragePathPlanner(Solver):
      the path to the number of times the mutation operator selects two random points from the path and connect them by
      the shortest path, and by that aims to shorten the path.
     :type add_remove_mutation_ratio: :class:`float`
-    :param mutation_std: The standard deviation for the gaussian mutation startegy.
+    :param mutation_std: The standard deviation for the gaussian mutation strategy.
     :type mutation_std: :class:`float`
     :param verbose: Whether to print the results.
     :type verbose: :class:`int`
