@@ -1,3 +1,6 @@
+"""
+A solver class for the coverage path planning problem, that uses a genetic algorithm approach.
+"""
 import math
 from dataclasses import dataclass
 from typing import Dict
@@ -18,7 +21,7 @@ from utils import *
 @dataclass
 class RobotPath:
     """
-    A dataclass that represents a robot and a path, and includes the cells that contain the path's points.
+    A dataclass that represents a robot and a path, and the cells that contain the path's points.
     """
     def __init__(self, robot: Robot, path: list[Point_2], cell_size: float):
         self.robot: Robot = robot
@@ -76,9 +79,9 @@ class CoveragePathPlanner(Solver):
     :type elite_proportion: :class:`float`
     :param crossover_merge: Whether to use a merging strategy in the crossover operator (1 to use this operator and 0 to
      not use it). This operator returns a new robot path by merging the two selected parents robot paths. The merged
-     path consists of three parts: (1) The path of the first parent for the start point to a random point. (2) The
+     path consists of three parts: (1) The path of the first parent from the start point to a random point. (2) The
      shortest path from the latter random point to another random point in the second parent's path, and (3) the path
-     of the second parent for the selected random point to the end point.
+     of the second parent from the selected random point to the end point.
      If this operator is not used, then the path of the crossover is copied from one of the parents which is chosen
      randomly.
     :type crossover_merge: :class:`int`
@@ -145,11 +148,11 @@ class CoveragePathPlanner(Solver):
         self.mutation_std = mutation_std
 
         # Datastructures initializations
-        self.cell_size = None
         self.roadmap = None
         self.roadmaps: Dict[Robot, nx.Graph] = {}
         self.collision_detection = {}
         self.population: list[list[RobotPath]] = []
+        self.cell_size = None
 
         self.verbose = verbose
 
@@ -210,21 +213,8 @@ class CoveragePathPlanner(Solver):
                                    d['verbose'],
                                    )
 
-    def get_graph(self):
-        """
-        Return a graph (if applicable).
-        Can be overridden by solvers.
-
-        :return: graph whose vertices are Point_2 or Point_d
-        :rtype: :class:`networkx.Graph` or :class:`None`
-        """
-        return self.roadmap
-
     def collision_free(self, p1: Point_2, p2: Point_2, robot: Robot):
-        """
-        Get two points in the configuration space and decide if they can be connected
-        """
-
+        """Gets two points in the configuration space and decide if they can be connected."""
         # Check validity of each edge separately
         edge = Segment_2(p1, p2)
         if not self.collision_detection[robot].is_edge_valid(edge):
@@ -232,10 +222,23 @@ class CoveragePathPlanner(Solver):
         return True
 
     def merge(self, parent_0_robot_path: RobotPath, parent_1_robot_path: RobotPath, robot: Robot) -> RobotPath:
+        """
+        Given two robot paths, Returns a new robot path by merging the two robot paths. The merged path consists of
+        three parts: (1) The path of the first parent from the start point to a random point. (2) The shortest path from
+        the latter random point to another random point in the second parent's path, and (3) the path of the second
+        parent from the selected random point to the end point.
+        If fails to merge, returns the first parent.
+        :param parent_0_robot_path: The first robot path to merge.
+        :param parent_1_robot_path: The second robot path to merge.
+        :param robot: The robot.
+        :return: The merged path.
+        """
+        # Sample random points from parents' paths to connect.
         parent_0_end_index = random.randint(0, len(parent_0_robot_path.path) - 1)
         parent_1_start_index = random.randint(0, len(parent_1_robot_path.path) - 1)
         parent_0_end_point = parent_0_robot_path.path[parent_0_end_index]
         parent_1_start_point = parent_1_robot_path.path[parent_1_start_index]
+        # Attempt to connect the ramdom point and return the merged robot path.
         roadmap = self.roadmaps[robot]
         if nx.algorithms.has_path(roadmap, parent_0_end_point,
                                   parent_1_start_point):
@@ -248,12 +251,20 @@ class CoveragePathPlanner(Solver):
                 path=path_start + path_middle[:-1] + path_end,
                 cell_size=self.cell_size)
             return merged_robot_path
+        # If fails to merge the paths, returns the first robot path without merging.
         return parent_0_robot_path
 
     def crossover_with_merge(self, fitness_distribution: np.ndarray, num_individuals: int) -> list[list[RobotPath]]:
+        """
+        Applies a merge crossover operator. For each new individual (a list of paths, one for each robot), two random
+        parents from the previous population are selected. The merge operator is then applied to each pair of robot
+        paths from the chosen parents, with each pair corresponding to the paths of the same robot.
+        :param fitness_distribution: The distribution for sampling the parents.
+        :param num_individuals: The number of individuals to create.
+        :return: The crossover merged individuals
+        """
         crossovers = []
         for child_idx in range(num_individuals):
-            # Create the next child by merging two parents.
             child: list[RobotPath] = []
             parent_0, parent_1 = random_choices_no_repetitions(self.population, fitness_distribution, k=2)
             num_robots = len(parent_0)
@@ -265,6 +276,14 @@ class CoveragePathPlanner(Solver):
         return crossovers
 
     def crossover_no_merge(self, fitness_distribution: np.ndarray, num_individuals: int) -> list[list[RobotPath]]:
+        """
+        Applies a crossover without merging paths. For each new individual (a list of robot paths), this operator
+        randomly selects two parents. Then, for each robot, it copies the path from one of the two parents, chosen at
+        random.
+        :param fitness_distribution: The distribution for sampling the parents.
+        :param num_individuals: The number of individuals to create.
+        :return: The crossover individuals.
+        """
         crossovers = []
         for child_idx in range(num_individuals):
             # Create the next child by merging two parents.
@@ -279,23 +298,38 @@ class CoveragePathPlanner(Solver):
         return crossovers
 
     def crossover(self, fitness_distribution: np.ndarray, num_individuals: int) -> list[list[RobotPath]]:
+        """
+        Applies the crossover operator.
+        :param fitness_distribution: The distribution for sampling the parents.
+        :param num_individuals: The number of individuals to create.
+        :return: The crossover individuals.
+        """
         if self.crossover_merge:
             return self.crossover_with_merge(fitness_distribution, num_individuals)
         return self.crossover_no_merge(fitness_distribution, num_individuals)
 
     def add_point_to_robot_path(self, robot_path: RobotPath) -> RobotPath:
+        """
+        Samples a random point and connects it to two randomly selected points from robot's path with the shortest
+        paths, and returns the new path.
+        :param robot_path: the robot path to modify.
+        :return: The modified robot path.
+        """
         robot = robot_path.robot
         robot_roadmap = self.roadmaps[robot]
         orig_path = robot_path.path
         new_path = []
         while True:
+            # Sample a random point to add to the path
             random_point = random.choice(list(robot_roadmap.nodes()))
+            # Sample the points from the original path to connect to the new random point.
             prev_node_idx = random.randint(0, len(orig_path) - 2)
             next_node_idx = random.randint(prev_node_idx, len(orig_path) - 1)
-            if not nx.algorithms.has_path(
-                    robot_roadmap, orig_path[prev_node_idx], random_point) or not nx.algorithms.has_path(
-                robot_roadmap, random_point, orig_path[next_node_idx]):
+            has_path_from_prev_to_random = nx.algorithms.has_path(robot_roadmap, orig_path[prev_node_idx], random_point)
+            has_path_from_random_to_next = nx.algorithms.has_path(robot_roadmap, random_point, orig_path[next_node_idx])
+            if not has_path_from_prev_to_random or not has_path_from_random_to_next:
                 continue
+            # Connect the points to create the new robot path.
             path_to_random = list(
                 nx.algorithms.shortest_path(robot_roadmap, orig_path[prev_node_idx], random_point, weight='weight'))
             path_from_random = list(
@@ -305,9 +339,14 @@ class CoveragePathPlanner(Solver):
             break
         return RobotPath(robot=robot, path=new_path, cell_size=self.cell_size)
 
-    def mutate_add_sample(self, crossovers: list[list[RobotPath]]) -> list[list[RobotPath]]:
+    def mutate_add_sample(self, individuals: list[list[RobotPath]]) -> list[list[RobotPath]]:
+        """
+        Applies a mutation operator that adds a random point to the robots path.
+        :param individuals: The individuals to mutate.
+        :return: The mutated individuals.
+        """
         mutated_crossovers: list[list[RobotPath]] = []
-        for robots_paths in crossovers:
+        for robots_paths in individuals:
             mutated_robots_paths: list[RobotPath] = []
             for robot_path in robots_paths:
                 if random.random() <= self.mutation_rate:
@@ -318,21 +357,27 @@ class CoveragePathPlanner(Solver):
         return mutated_crossovers
 
     def add_gaussian_point(self, robot_path: RobotPath) -> RobotPath:
+        """
+        Given a robot path, sample a random point from the path (`orig_point`), then sample a point from a gaussian
+        distribution centered at the orig_point, and replace the orig_point with the new sampled point.
+        :param robot_path: The robot path to modify.
+        :return: The modified robot path.
+        """
         assert len(robot_path.path) >= 3
         robot = robot_path.robot
         robot_roadmap = self.roadmaps[robot]
         robot_nn = self.nearest_neighbors[robot]
         middle_points_indices = list(range(1, len(robot_path.path) - 1))
-        random_point_index = random.choice(middle_points_indices)
-        random_point = robot_path.path[random_point_index]
-        point_coords = [random_point.x().to_double(), random_point.y().to_double()]
-        random_sample = np.random.multivariate_normal(mean=point_coords,
-                                                      cov=np.array([[self.mutation_std, 0], [0, self.mutation_std]]),
-                                                      size=1)[0]
-        random_sample_point = Point_2(FT(random_sample[0]), FT(random_sample[1]))
-        random_path_point = robot_nn.k_nearest(random_sample_point, 1)[0]
-        prev_point = robot_path.path[random_point_index - 1]
-        next_point = robot_path.path[random_point_index + 1]
+        orig_point_index = random.choice(middle_points_indices)
+        orig_point = robot_path.path[orig_point_index]
+        orig_point_coords = [orig_point.x().to_double(), orig_point.y().to_double()]
+        random_point = np.random.multivariate_normal(mean=orig_point_coords,
+                                                     cov=np.array([[self.mutation_std, 0], [0, self.mutation_std]]),
+                                                     size=1)[0]
+        random_point_point = Point_2(FT(random_point[0]), FT(random_point[1]))
+        random_path_point = robot_nn.k_nearest(random_point_point, 1)[0]
+        prev_point = robot_path.path[orig_point_index - 1]
+        next_point = robot_path.path[orig_point_index + 1]
 
         if not nx.algorithms.has_path(robot_roadmap, prev_point, random_path_point) or not nx.algorithms.has_path(
                 robot_roadmap, random_path_point, next_point):
@@ -340,13 +385,17 @@ class CoveragePathPlanner(Solver):
         path_to_random = nx.algorithms.shortest_path(robot_roadmap, prev_point, random_path_point, weight='weight')
         path_from_random = nx.algorithms.shortest_path(robot_roadmap, random_path_point, next_point, weight='weight')
         orig_path = robot_path.path
-        return RobotPath(robot=robot,
-                         path=orig_path[:random_point_index - 1] + list(path_to_random)[:-1] + list(path_from_random)[
-                                                                                               :-1] + orig_path[
-                                                                                                      random_point_index + 1:],
-                         cell_size=self.cell_size)
+        start_to_random_path = orig_path[:orig_point_index - 1] + list(path_to_random)[:-1]
+        random_to_end_path = list(path_from_random)[:-1] + orig_path[orig_point_index + 1:]
+        return RobotPath(robot=robot, path=start_to_random_path + random_to_end_path, cell_size=self.cell_size)
 
     def remove_random_points(self, robot_path: RobotPath) -> RobotPath:
+        """
+        Removes random points from the path. This is done by selecting a sequence of points from the original path.
+        and connecting the first and the last points in the sequence by the shortest path instead of the original path.
+        :param robot_path: The robot path to modify.
+        :return: The modified robot path.
+        """
         assert len(robot_path.path) >= 3
         robot = robot_path.robot
         robot_roadmap = self.roadmaps[robot]
@@ -361,7 +410,13 @@ class CoveragePathPlanner(Solver):
                          path=orig_path[:start_point_index] + list(shorter_path)[:-1] + orig_path[end_point_index:],
                          cell_size=self.cell_size)
 
-    def add_middle_point(self, robot_path: RobotPath) -> RobotPath:
+    def ensure_middle_point_exists(self, robot_path: RobotPath) -> RobotPath:
+        """
+        If the robot path consists of less then three points, returns a new robot path that contains three points - the
+        start point and the end point twice.
+        :param robot_path: The robot path.
+        :return: The robot path that is modified to have at least three points.
+        """
         if len(robot_path.path) >= 3:
             return robot_path
         else:
@@ -369,16 +424,23 @@ class CoveragePathPlanner(Solver):
                              path=[robot_path.robot.start, robot_path.robot.end, robot_path.robot.end],
                              cell_size=self.cell_size)
 
-    def mutate_gaussian_or_remove(self, crossovers: list[list[RobotPath]]) -> list[list[RobotPath]]:
+    def mutate_gaussian_or_remove(self, individuals: list[list[RobotPath]]) -> list[list[RobotPath]]:
+        """
+        Applies a mutation operator that randomly applies for each individual to mutate one of two operations:
+        (1) adds a new point from a gaussian distribution centered at one of the original points and (2) removes
+        a randomly selected point from the original path.
+        :param individuals: The individual to mutate
+        :return:
+        """
         mutated_crossovers: list[list[RobotPath]] = []
-        for robots_paths in crossovers:
+        for robots_paths in individuals:
             mutated_robots_paths: list[RobotPath] = []
             for robot_path in robots_paths:
                 if random.random() > self.mutation_rate:
                     mutated_robots_paths.append(robot_path)
                     continue
                 # For the mutation operation below, the path should contain at least three points.
-                robot_path = self.add_middle_point(robot_path)
+                robot_path = self.ensure_middle_point_exists(robot_path)
                 if random.random() < self.add_remove_mutation_ratio:
                     new_robot_path = self.add_gaussian_point(robot_path)
                 else:
@@ -388,9 +450,14 @@ class CoveragePathPlanner(Solver):
         return mutated_crossovers
 
     def get_random_robots_paths(self) -> list[RobotPath]:
+        """
+        For each robot, creates a random path by connecting (with the shortest paths) the start point to a random point
+        to the end point of the robot.
+        :return: The new random paths, one for each robot in the scene.
+        """
         robots_paths = []
         for robot in self.scene.robots:
-            # Create a initial path for the robot by connecting its start point, a random point and its end point.
+            # Create an initial path for the robot by connecting its start point, a random point and its end point.
             robot_roadmap = self.roadmaps[robot]
             random_point = random.choice(list(robot_roadmap.nodes()))
             while not nx.algorithms.has_path(robot_roadmap, robot.start, random_point) or not nx.algorithms.has_path(
@@ -403,6 +470,10 @@ class CoveragePathPlanner(Solver):
         return robots_paths
 
     def get_shortest_paths(self) -> list[RobotPath]:
+        """
+        Returns a list of the shortest paths from start point to end point for each robot.
+        :return: The shortest paths for each robot.
+        """
         robots_paths = []
         for robot in self.scene.robots:
             robot_roadmap = self.roadmaps[robot]
@@ -411,6 +482,9 @@ class CoveragePathPlanner(Solver):
         return robots_paths
 
     def get_initial_population(self) -> list[list[RobotPath]]:
+        """
+        Return the initial population for the genetic algorithm
+        """
         if self.random_point_initialization:
             return [self.get_random_robots_paths() for _ in range(self.population_size)]
         return [self.get_shortest_paths() for _ in range(self.population_size)]
@@ -425,6 +499,9 @@ class CoveragePathPlanner(Solver):
         return sample
 
     def create_robot_roadmap(self, robot: Robot):
+        """
+        Creates the roadmap for the given robot.
+        """
         robot_roadmap = nx.Graph()
 
         # Add points to robot's roadmap
@@ -447,11 +524,18 @@ class CoveragePathPlanner(Solver):
         return robot_roadmap
 
     def print(self, to_print: str, *args, **kwargs):
+        """
+        Prints if self.verbose is True
+        :return:
+        """
         if not self.verbose:
             return
         print(to_print, file=self.writer, *args, **kwargs)
 
     def updated_cell_size(self, new_cell_size: float) -> None:
+        """
+        Updates the attribute of the class according to a new cell size
+        """
         self.cell_size = new_cell_size
         new_population = []
         for robots_paths in self.population:
@@ -462,21 +546,35 @@ class CoveragePathPlanner(Solver):
         self.population = new_population
 
     def get_bounding_box_size(self) -> float:
+        """
+        Returns the size of the bounding box.
+        """
         bounding_box = self.calc_bounding_box()
         return max(bounding_box.max_x.to_double() - bounding_box.min_x.to_double(),
                    bounding_box.max_y.to_double() - bounding_box.min_y.to_double())
 
     def get_number_of_cells(self) -> int:
+        """
+        Returns the total number of cells.
+        """
         bounding_box = self.calc_bounding_box()
         return math.ceil((bounding_box.max_x.to_double() - bounding_box.min_x.to_double()) / self.cell_size) * \
             math.ceil((bounding_box.max_y.to_double() - bounding_box.min_y.to_double()) / self.cell_size)
 
-    def mutate(self, crossovers: list[list[RobotPath]]) -> list[list[RobotPath]]:
+    def mutate(self, individuals: list[list[RobotPath]]) -> list[list[RobotPath]]:
+        """
+        Applies the mutation operator.
+        :param individuals: The individuals to mutate.
+        :return: The mutated individuals.
+        """
         if self.mutate_gauss:
-            return self.mutate_gaussian_or_remove(crossovers)
-        return self.mutate_add_sample(crossovers)
+            return self.mutate_gaussian_or_remove(individuals)
+        return self.mutate_add_sample(individuals)
 
     def load_scene(self, scene: Scene):
+        """
+        A function to load the scene. This function applies the genetic algorithm to get the final population.
+        """
         super().load_scene(scene)
         self.sampler.set_scene(scene, self._bounding_box)
         self.cell_size = self.get_bounding_box_size()
