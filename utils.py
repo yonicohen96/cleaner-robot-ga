@@ -1,7 +1,5 @@
-import multiprocessing
 import random
 from typing import Any
-from typing import Callable
 
 import numpy as np
 from discopygal.bindings import Point_2
