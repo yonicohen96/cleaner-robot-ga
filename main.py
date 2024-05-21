@@ -26,9 +26,9 @@ ADD_REMOVE_MUTATION_RATIO_OPTION = 'add_remove_mutation_ratio'
 MUTATION_STD_OPTION = 'mutation_st'
 BASE_HYPERPARAMS = {
     SCENE_FILENAME_OPTION: ["scene3.json"],
-    ITERATION_NUMBER_OPTION: [2],
+    ITERATION_NUMBER_OPTION: [3],
     POPULATION_SIZE_OPTION: [10],
-    EVOLUTION_STEPS_OPTION: [10],
+    EVOLUTION_STEPS_OPTION: [500],
     MIN_CELL_SIZE_OPTION: [2.0],
     CELL_SIZE_DECREASE_INTERVAL_OPTION: [5],
     FINAL_STEPS_NUM_OPTION: [10],
@@ -275,5 +275,5 @@ def combinations_final_results(hyperparams: dict, verbose=False) -> pd.DataFrame
 
 if __name__ == '__main__':
     # combinations_final_results(hyperparams=BASE_HYPERPARAMS)
-    # all_scenes_single_parameter_change(BASE_HYPERPARAMS, CELL_SIZE_DECREASE_INTERVAL_OPTION, [5, 20], True)
-    single_scene_single_parameter_change(BASE_HYPERPARAMS, CELL_SIZE_DECREASE_INTERVAL_OPTION, [5, 20], True)
+    all_scenes_single_parameter_change(BASE_HYPERPARAMS, POPULATION_SIZE_OPTION, [10, 20, 30], True)
+    # single_scene_single_parameter_change(BASE_HYPERPARAMS, CELL_SIZE_DECREASE_INTERVAL_OPTION, [5, 20], True)
