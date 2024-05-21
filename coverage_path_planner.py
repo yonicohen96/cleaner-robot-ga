@@ -154,6 +154,7 @@ class CoveragePathPlanner(Solver):
         self.population: list[list[RobotPath]] = []
         self.cell_size = None
         self.free_cells: set[tuple[int, int]] = set()
+        self.best_fitness_values: list[float] = []
 
         self.verbose = verbose
 
@@ -580,6 +581,7 @@ class CoveragePathPlanner(Solver):
         A function to load the scene. This function applies the genetic algorithm to get the final population.
         """
         super().load_scene(scene)
+        self.best_fitness_values = []
         self.sampler.set_scene(scene, self._bounding_box)
         self.cell_size = self.get_bounding_box_size()
 
@@ -609,6 +611,7 @@ class CoveragePathPlanner(Solver):
 
             # Compute fitness value.
             fitness_values = [get_fitness(robots_paths) for robots_paths in self.population]
+            self.best_fitness_values.append(max(fitness_values))
 
             # If there is no improvement for `self.cell_size_decrease_interval` steps, decrease cell_size.
             if self.cell_size > self.min_cell_size and max(fitness_values) == best_fitness_value:
@@ -632,6 +635,7 @@ class CoveragePathPlanner(Solver):
             mutated_crossover_population = self.mutate(crossover_population)
 
             self.population = elite_population + mutated_crossover_population
+        self.best_fitness_values.append(max([get_fitness(robots_paths) for robots_paths in self.population]))
 
     def solve(self):
         """
