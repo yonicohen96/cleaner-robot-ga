@@ -226,9 +226,7 @@ def combinations_final_results(hyperparams: dict, verbose=False) -> pd.DataFrame
 
 
 if __name__ == '__main__':
-    # combinations_final_results(hyperparams=BASE_HYPERPARAMS))
-    # combinations_final_results(BASE_HYPERPARAMS, True, verbose=True)
-    # write_times("out", "population_size", [10, 20, 30], [1, 4, 6])
+    # combinations_final_results(hyperparams=BASE_HYPERPARAMS)
     single_parameter_change(BASE_HYPERPARAMS, POPULATION_SIZE_OPTION, [10, 20, 30], False)
 
     # TODO start with a fixed values and for each parameter check different values and plot graphs of differet values
