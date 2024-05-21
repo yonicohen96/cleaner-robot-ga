@@ -28,7 +28,7 @@ BASE_HYPERPARAMS = {
     SCENE_FILENAME_OPTION: ["scene3.json"],
     ITERATION_NUMBER_OPTION: [3],
     POPULATION_SIZE_OPTION: [10],
-    EVOLUTION_STEPS_OPTION: [10],
+    EVOLUTION_STEPS_OPTION: [500],
     MIN_CELL_SIZE_OPTION: [2.0],
     CELL_SIZE_DECREASE_INTERVAL_OPTION: [5],
     FINAL_STEPS_NUM_OPTION: [10],
@@ -227,7 +227,7 @@ def combinations_final_results(hyperparams: dict, verbose=False) -> pd.DataFrame
 
 if __name__ == '__main__':
     # combinations_final_results(hyperparams=BASE_HYPERPARAMS)
-    single_parameter_change(BASE_HYPERPARAMS, POPULATION_SIZE_OPTION, [10, 20, 30], False)
+    single_parameter_change(BASE_HYPERPARAMS, POPULATION_SIZE_OPTION, [10, 20, 30], True)
 
     # TODO start with a fixed values and for each parameter check different values and plot graphs of differet values
     #  as a function of evolutio steps. for example different population size, and number iterations is 3,
