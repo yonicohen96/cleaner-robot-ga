@@ -26,7 +26,6 @@ MUTATION_RATE_OPTION = 'mutation_rate'
 MUTATE_GAUSS_OPTION = 'mutate_gauss'
 ADD_REMOVE_MUTATION_RATIO_OPTION = 'add_remove_mutation_ratio'
 MUTATION_STD_OPTION = 'mutation_st'
-
 BASE_HYPERPARAMS = {
     SCENE_FILENAME_OPTION: ["scene3.json"],
     ITERATION_NUMBER_OPTION: [3],
@@ -43,7 +42,6 @@ BASE_HYPERPARAMS = {
     ADD_REMOVE_MUTATION_RATIO_OPTION: [0.8],
     MUTATION_STD_OPTION: [2],
 }
-
 AVG_TIME_FIELD = "avg_time"
 AVG_FITNESS_FIELD = "avg_fitness"
 SCENE_DIR = "scenes"
@@ -121,44 +119,44 @@ def run_exp(hyperparams: dict, save: bool = False, output_path: str = "", verbos
         df.to_csv(output_path, index=False)
     return df
 
+#
+# def get_coef(filename):
+#     # Step 1: Read the CSV file into a pandas DataFrame
+#     data = pd.read_csv(os.path.join(OUT_DIR, filename))
+#
+#     # Step 2: Separate the features (A, B, C) and the target variable (D)
+#     X = data[NUMERICAL_OPTIONS_LIST]
+#     y = data[AVG_FITNESS_FIELD]
+#
+#     # Step 3: Split the data into training and testing sets
+#     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+#
+#     # Step 4: Fit the linear regression model
+#     model = LinearRegression()
+#     model.fit(X_train, y_train)
+#
+#     # Step 5: Make predictions using the testing set
+#     y_pred = model.predict(X_test)
+#
+#     # Step 6: Evaluate the model
+#     mse = mean_squared_error(y_test, y_pred)
+#     r2 = r2_score(y_test, y_pred)
+#
+#     print(f'Mean Squared Error: {mse}')
+#     print(f'R^2 Score: {r2}')
+#
+#     # Optional: Print the coefficients of the linear regression model
+#     print(f'Coefficients: {model.coef_}')
+#     print(f'Intercept: {model.intercept_}')
 
-def get_coef(filename):
-    # Step 1: Read the CSV file into a pandas DataFrame
-    data = pd.read_csv(os.path.join(OUT_DIR, filename))
-
-    # Step 2: Separate the features (A, B, C) and the target variable (D)
-    X = data[NUMERICAL_OPTIONS_LIST]
-    y = data[AVG_FITNESS_FIELD]
-
-    # Step 3: Split the data into training and testing sets
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-    # Step 4: Fit the linear regression model
-    model = LinearRegression()
-    model.fit(X_train, y_train)
-
-    # Step 5: Make predictions using the testing set
-    y_pred = model.predict(X_test)
-
-    # Step 6: Evaluate the model
-    mse = mean_squared_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
-
-    print(f'Mean Squared Error: {mse}')
-    print(f'R^2 Score: {r2}')
-
-    # Optional: Print the coefficients of the linear regression model
-    print(f'Coefficients: {model.coef_}')
-    print(f'Intercept: {model.intercept_}')
-
-
-def get_correlation():
-    # Step 1: Read the CSV file into a pandas DataFrame
-    data = pd.read_csv(os.path.join(OUT_DIR, "240514-2048.csv"))
-
-    # Step 2: Separate the features (A, B, C) and the target variable (D)
-    X = data[NUMERICAL_OPTIONS_LIST + [AVG_TIME_FIELD, AVG_FITNESS_FIELD]]
-    print(X.corr().to_csv("out/correlation.csv"))
+#
+# def get_correlation():
+#     # Step 1: Read the CSV file into a pandas DataFrame
+#     data = pd.read_csv(os.path.join(OUT_DIR, "240514-2048.csv"))
+#
+#     # Step 2: Separate the features (A, B, C) and the target variable (D)
+#     X = data[NUMERICAL_OPTIONS_LIST + [AVG_TIME_FIELD, AVG_FITNESS_FIELD]]
+#     print(X.corr().to_csv("out/correlation.csv"))
 
 
 def first_params_initialization():

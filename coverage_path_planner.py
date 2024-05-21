@@ -108,14 +108,14 @@ class CoveragePathPlanner(Solver):
                  k=15,
                  bounding_margin_width_factor=Solver.DEFAULT_BOUNDS_MARGIN_FACTOR,
                  population_size: int = 10,
-                 evolution_steps: int = 20,
+                 evolution_steps: int = 400,
                  min_cell_size: float = 1.0,
                  cell_size_decrease_interval: int = 5,
                  final_steps_num: int = 10,
                  random_point_initialization: int = 0,
-                 elite_proportion: float = 0.1,
+                 elite_proportion: float = 0.2,
                  crossover_merge: int = 0,
-                 mutation_rate: float = 0.3,
+                 mutation_rate: float = 0.5,
                  mutate_gauss: int = 1,
                  add_remove_mutation_ratio: float = 0.8,
                  mutation_std: float = 2,
@@ -172,14 +172,14 @@ class CoveragePathPlanner(Solver):
             'bounding_margin_width_factor': (
                 'Margin width factor (for bounding box):', Solver.DEFAULT_BOUNDS_MARGIN_FACTOR, FT),
             'population_size': ('population size:', 10, int),
-            'evolution_steps': ('evolution steps:', 20, int),
+            'evolution_steps': ('evolution steps:', 400, int),
             'min_cell_size': ('min cell size:', 1.0, float),
             'cell_size_decrease_interval': ('cell_size_decrease_interval', 5, int),
             'final_steps_num': ('final_steps_num', 10, int),
             'random_point_initialization': ('random_point_initialization', 0, int),
-            'elite_proportion': ('elite proportion:', 0.1, float),
+            'elite_proportion': ('elite proportion:', 0.2, float),
             'crossover_merge': ('crossover_merge', 0, int),
-            'mutation_rate': ('mutation rate:', 0.3, float),
+            'mutation_rate': ('mutation rate:', 0.5, float),
             'mutate_gauss': ('mutate_gauss', 1, int),
             'add_remove_mutation_ratio': ('add_remove_mutation_ratio', 0.8, float),
             'mutation_std': ('mutation_std', 2, float),
@@ -536,7 +536,7 @@ class CoveragePathPlanner(Solver):
         """
         Updates the attribute of the class according to a new cell size
         """
-        self.cell_size = new_cell_size
+        self.cell_size = max(new_cell_size, self.min_cell_size)
         new_population = []
         for robots_paths in self.population:
             new_robots_paths = []
@@ -599,18 +599,20 @@ class CoveragePathPlanner(Solver):
             # In the last `self.final_steps_num` steps, change the cell size to min_cell_size: the final
             # fitness value is computed with respect to cell size of self.min_cell_size, so in the last iteration we
             # should perform evolution with the target of maximizing the final fitness function.
-            if step >= self.evolution_steps - self.final_steps_num:
+            if self.cell_size > self.min_cell_size and step >= self.evolution_steps - self.final_steps_num:
                 self.updated_cell_size(self.min_cell_size)
+                self.print("########", self.cell_size)
 
             # Compute fitness value.
             fitness_values = [get_fitness(robots_paths) for robots_paths in self.population]
 
             # If there is no improvement for `self.cell_size_decrease_interval` steps, decrease cell_size.
-            if self.cell_size >= self.min_cell_size * 2 and max(fitness_values) == best_fitness_value:
+            if self.cell_size > self.min_cell_size and max(fitness_values) == best_fitness_value:
                 steps_without_progress += 1
                 if steps_without_progress > self.cell_size_decrease_interval:
                     steps_without_progress = 0
-                    self.updated_cell_size(self.cell_size / 2)
+                    self.updated_cell_size(max(self.cell_size / 2, self.min_cell_size))
+                    self.print("########", self.cell_size)
                     fitness_values = [get_fitness(robots_paths) for robots_paths in self.population]
             self.print("\tmax fitness value: ", max(fitness_values))
 
