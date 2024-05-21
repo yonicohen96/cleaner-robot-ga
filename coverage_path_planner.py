@@ -315,6 +315,7 @@ class CoveragePathPlanner(Solver):
         :param robot_path: the robot path to modify.
         :return: The modified robot path.
         """
+        robot_path = self.ensure_middle_point_exists(robot_path)
         robot = robot_path.robot
         robot_roadmap = self.roadmaps[robot]
         orig_path = robot_path.path

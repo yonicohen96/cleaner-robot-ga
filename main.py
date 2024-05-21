@@ -159,26 +159,12 @@ def run_exp(hyperparams: dict, save: bool = False, output_path: str = "", verbos
 #     print(X.corr().to_csv("out/correlation.csv"))
 
 
-def first_params_initialization():
-    hyperparams = {
-        SCENE_FILENAME_OPTION: ["scene1.json"],
-        ITERATION_NUMBER_OPTION: [2],
-        POPULATION_SIZE_OPTION: [10, 20],
-        EVOLUTION_STEPS_OPTION: [20, 40],
-        MIN_CELL_SIZE_OPTION: [1.0],
-        ELITE_PROPORTION_OPTION: [0.1, 0.5],
-        MUTATION_RATE_OPTION: [0.1, 0.5, 0.9],
-        CELL_SIZE_DECREASE_INTERVAL_OPTION: [5, 10],
-    }
-    run_exp(hyperparams, save=True, verbose=False)
-
-
 def single_debug_experiment(save: bool):
     run_exp(BASE_HYPERPARAMS, save=save, verbose=True)
 
 
 if __name__ == '__main__':
-    single_debug_experiment(True)
+    single_debug_experiment(False)
     # TODO start with a fixed values and for each parameter check different values and plot graphs of differet values
     #  as a function of evolutio steps. for example different population size, and number iterations is 3,
     #  then create a graph that each of the population size values is a color so for each color we should have 3 curves.
