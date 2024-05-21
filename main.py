@@ -197,7 +197,6 @@ def single_parameter_change(hyperparams: dict, value_to_change: str, value_optio
 
 
 def combinations_final_results(hyperparams: dict, verbose=False) -> pd.DataFrame:
-    # TODO save time
     output_dir = _get_out_dir()
     result = []
     headers, parameter_combinations = _get_parameters_combinations_and_names(hyperparams)
