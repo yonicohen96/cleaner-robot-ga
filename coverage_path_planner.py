@@ -583,7 +583,7 @@ class CoveragePathPlanner(Solver):
         super().load_scene(scene)
         self.best_fitness_values = []
         self.sampler.set_scene(scene, self._bounding_box)
-        self.cell_size = self.get_bounding_box_size()
+        self.cell_size = max(self.min_cell_size, self.get_bounding_box_size() / 4)
 
         # Build collision detection and roadmap for each robot.
         self.print(f'Creating robot roadmaps...')

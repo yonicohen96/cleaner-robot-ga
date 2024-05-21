@@ -6,6 +6,8 @@ import time
 
 import pandas as pd
 import tqdm
+import matplotlib.pyplot as plt
+import itertools
 
 from coverage_path_planner import *
 
@@ -90,6 +92,80 @@ def _get_parameters_combinations_and_names(parameters: dict[str, list]) -> tuple
     return names, parameter_combinations
 
 
+def plot_all_runs(data, parameter_name):
+    fig, ax = plt.subplots()
+    # Generate a list of colors
+    colors = itertools.cycle(plt.cm.tab10.colors)
+    added_legend = set()
+    # Plot each key with a different color
+    for key, list_of_lists in data.items():
+        color = next(colors)
+        for y_values in list_of_lists:
+            x_values = range(len(y_values))
+            if key not in added_legend:
+                ax.plot(x_values, y_values, label=f'{key}', color=color)
+                added_legend.add(key)
+            else:
+                ax.plot(x_values, y_values, color=color)
+    # Add a legend
+    ax.legend()
+    # Add labels
+    ax.set_xlabel('evolution step')
+    ax.set_ylabel('fitness value')
+    ax.set_title(f'Fitness values different {parameter_name} values')
+    # Show the plot
+    plt.show()
+
+
+def plot_std(data, parameter_name):
+    # Create a figure and axis
+    fig, ax = plt.subplots()
+    # Generate a list of colors
+    colors = itertools.cycle(plt.cm.tab10.colors)
+    # Plot each key with a different color
+    for key, list_of_lists in data.items():
+        color = next(colors)
+        # Convert the list of lists to a numpy array for easy computation
+        array = np.array(list_of_lists)
+        # Calculate the mean and standard deviation along the first axis (time points)
+        mean_values = np.mean(array, axis=0)
+        std_values = np.std(array, axis=0)
+        # Generate x values
+        x_values = range(len(mean_values))
+        # Plot the mean values
+        ax.plot(x_values, mean_values, label=key, color=color)
+        # Plot the standard deviation as a shaded area
+        ax.fill_between(x_values, mean_values - std_values, mean_values + std_values, color=color, alpha=0.3)
+    # Add a legend
+    ax.legend()
+    # Add labels
+    ax.set_xlabel('evolution step')
+    ax.set_ylabel('fitness value')
+    ax.set_title(f'Fitness values for different {parameter_name} values')
+    # Show the plot
+    plt.show()
+
+
+def single_parameter_change(hyperparams: dict, value_to_change: str, value_options: list, verbose=False) -> dict:
+    assert all([len(value) == 1 for value in hyperparams.values()])
+    assert value_to_change in hyperparams
+    hyperparams[value_to_change] = value_options
+    headers, parameter_combinations = _get_parameters_combinations_and_names(hyperparams)
+    parameter_value_to_fitness_evolution: dict[Any, list[list[float]]] = {}
+    for combination in tqdm.tqdm(parameter_combinations, desc="params combination"):
+        curr_params_dict = {name: combination[idx] for (idx, name) in enumerate(headers)}
+        parameter_value = curr_params_dict[value_to_change]
+        parameter_value_to_fitness_evolution[parameter_value] = []
+        with open(os.path.join(SCENE_DIR, curr_params_dict[SCENE_FILENAME_OPTION]), 'r') as fp:
+            scene = Scene.from_dict(json.load(fp))
+            for _ in range(curr_params_dict[ITERATION_NUMBER_OPTION]):
+                solver = _get_solver_from_params(curr_params_dict, verbose)
+                solver.load_scene(scene)
+                parameter_value_to_fitness_evolution[parameter_value].append(solver.best_fitness_values)
+    plot_all_runs(parameter_value_to_fitness_evolution, value_to_change)
+    plot_std(parameter_value_to_fitness_evolution, value_to_change)
+
+
 def combinations_final_results(hyperparams: dict, save: bool = False, output_path: str = "",
                                verbose=False) -> pd.DataFrame:
     if save:
@@ -125,7 +201,8 @@ def combinations_final_results(hyperparams: dict, save: bool = False, output_pat
 
 
 if __name__ == '__main__':
-    combinations_final_results(BASE_HYPERPARAMS, True, "", verbose=True)
+    # combinations_final_results(BASE_HYPERPARAMS, True, "", verbose=True)
+    single_parameter_change(BASE_HYPERPARAMS, POPULATION_SIZE_OPTION, [10, 20, 30], True)
     # TODO start with a fixed values and for each parameter check different values and plot graphs of differet values
     #  as a function of evolutio steps. for example different population size, and number iterations is 3,
     #  then create a graph that each of the population size values is a color so for each color we should have 3 curves.
