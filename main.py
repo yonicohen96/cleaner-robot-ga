@@ -29,7 +29,7 @@ BASE_HYPERPARAMS = {
     SCENE_FILENAME_OPTION: ["scene3.json"],
     ITERATION_NUMBER_OPTION: [3],
     POPULATION_SIZE_OPTION: [10],
-    EVOLUTION_STEPS_OPTION: [400],
+    EVOLUTION_STEPS_OPTION: [10],
     MIN_CELL_SIZE_OPTION: [2.0],
     CELL_SIZE_DECREASE_INTERVAL_OPTION: [5],
     FINAL_STEPS_NUM_OPTION: [10],
@@ -109,6 +109,7 @@ def plot_all_runs(data, parameter_name, output_dir):
                 ax.plot(x_values, y_values, color=color)
     # Add a legend
     ax.legend()
+    ax.get_legend().set_title(parameter_name)
     # Add labels
     ax.set_xlabel('evolution step')
     ax.set_ylabel('fitness value')
@@ -140,6 +141,7 @@ def plot_std(data, parameter_name, output_dir):
         ax.fill_between(x_values, mean_values - std_values, mean_values + std_values, color=color, alpha=0.3)
     # Add a legend
     ax.legend()
+    ax.get_legend().set_title(parameter_name)
     # Add labels
     ax.set_xlabel('evolution step')
     ax.set_ylabel('fitness value')
