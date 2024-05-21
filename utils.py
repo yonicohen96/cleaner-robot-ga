@@ -121,9 +121,9 @@ def random_choices_no_repetitions(population: list[Any], weights: list[float] | 
 #
 # def get_correlation():
 #     # Step 1: Read the CSV file into a pandas DataFrame
-#     data = pd.read_csv(os.path.join(OUT_DIR, "240514-2048.csv"))
+#     data = pd.read_csv(os.path.join(OUT_DIR, "240514-2048s.csv"))
 #
 #     # Step 2: Separate the features (A, B, C) and the target variable (D)
 #     X = data[NUMERICAL_OPTIONS_LIST + [AVG_TIME_FIELD, AVG_FITNESS_FIELD]]
-#     print(X.corr().to_csv("out/correlation.csv"))
+#     print(X.corr().to_csv("out/correlations.csv"))
 

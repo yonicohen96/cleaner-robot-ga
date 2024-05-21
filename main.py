@@ -92,7 +92,7 @@ def _get_parameters_combinations_and_names(parameters: dict[str, list]) -> tuple
     return names, parameter_combinations
 
 
-def plot_all_runs(data, parameter_name):
+def plot_all_runs(data, parameter_name, output_dir):
     fig, ax = plt.subplots()
     # Generate a list of colors
     colors = itertools.cycle(plt.cm.tab10.colors)
@@ -114,10 +114,12 @@ def plot_all_runs(data, parameter_name):
     ax.set_ylabel('fitness value')
     ax.set_title(f'Fitness values different {parameter_name} values')
     # Show the plot
+    plt.savefig(os.path.join(output_dir, f"{parameter_name}_runs.pdf"))
     plt.show()
 
 
-def plot_std(data, parameter_name):
+
+def plot_std(data, parameter_name, output_dir):
     # Create a figure and axis
     fig, ax = plt.subplots()
     # Generate a list of colors
@@ -143,13 +145,26 @@ def plot_std(data, parameter_name):
     ax.set_ylabel('fitness value')
     ax.set_title(f'Fitness values for different {parameter_name} values')
     # Show the plot
+    plt.savefig(os.path.join(output_dir, f"{parameter_name}_std.pdf"))
     plt.show()
+
+
+
+def _get_out_dir() -> str:
+    out_dir = os.path.join(OUT_DIR, datetime.datetime.now().strftime('%y%m%d-%H%M%S'))
+    assert not os.path.exists(out_dir)
+    os.makedirs(out_dir, exist_ok=True)
+    return out_dir
 
 
 def single_parameter_change(hyperparams: dict, value_to_change: str, value_options: list, verbose=False) -> dict:
     assert all([len(value) == 1 for value in hyperparams.values()])
     assert value_to_change in hyperparams
+    output_dir = _get_out_dir()
     hyperparams[value_to_change] = value_options
+    with open(os.path.join(output_dir, 'hyperparams.json'), 'w') as file:
+        json.dump(hyperparams, file, indent=4)
+
     headers, parameter_combinations = _get_parameters_combinations_and_names(hyperparams)
     parameter_value_to_fitness_evolution: dict[Any, list[list[float]]] = {}
     for combination in tqdm.tqdm(parameter_combinations, desc="params combination"):
@@ -162,16 +177,14 @@ def single_parameter_change(hyperparams: dict, value_to_change: str, value_optio
                 solver = _get_solver_from_params(curr_params_dict, verbose)
                 solver.load_scene(scene)
                 parameter_value_to_fitness_evolution[parameter_value].append(solver.best_fitness_values)
-    plot_all_runs(parameter_value_to_fitness_evolution, value_to_change)
-    plot_std(parameter_value_to_fitness_evolution, value_to_change)
+    plot_all_runs(parameter_value_to_fitness_evolution, value_to_change, output_dir)
+    plot_std(parameter_value_to_fitness_evolution, value_to_change, output_dir)
+    return parameter_value_to_fitness_evolution
 
 
-def combinations_final_results(hyperparams: dict, save: bool = False, output_path: str = "",
-                               verbose=False) -> pd.DataFrame:
-    if save:
-        output_filename = datetime.datetime.now().strftime('%y%m%d-%H%M.csv')
-        output_path = output_path or os.path.join(OUT_DIR, output_filename)
-        assert not os.path.exists(output_path)
+def combinations_final_results(hyperparams: dict, verbose=False) -> pd.DataFrame:
+    # TODO save time
+    output_dir = _get_out_dir()
     result = []
     headers, parameter_combinations = _get_parameters_combinations_and_names(hyperparams)
     for combination in tqdm.tqdm(parameter_combinations, desc="params combination"):
@@ -194,15 +207,18 @@ def combinations_final_results(hyperparams: dict, save: bool = False, output_pat
             result.append(list(combination) + [avg_time, avg_fitness])
 
     df = pd.DataFrame(data=result, columns=headers + [AVG_TIME_FIELD, AVG_FITNESS_FIELD])
-    if save:
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        df.to_csv(output_path, index=False)
+    df.to_csv(os.path.join(output_dir, "out.csv"), index=False)
     return df
 
 
+
 if __name__ == '__main__':
-    # combinations_final_results(BASE_HYPERPARAMS, True, "", verbose=True)
-    single_parameter_change(BASE_HYPERPARAMS, POPULATION_SIZE_OPTION, [10, 20, 30], True)
+    # combinations_final_results(hyperparams=BASE_HYPERPARAMS))
+    # combinations_final_results(BASE_HYPERPARAMS, True, verbose=True)
+    single_parameter_change(BASE_HYPERPARAMS, POPULATION_SIZE_OPTION, [10, 20, 30], False)
+
     # TODO start with a fixed values and for each parameter check different values and plot graphs of differet values
     #  as a function of evolutio steps. for example different population size, and number iterations is 3,
     #  then create a graph that each of the population size values is a color so for each color we should have 3 curves.
+
+
