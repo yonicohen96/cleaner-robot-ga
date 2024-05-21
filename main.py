@@ -1,5 +1,4 @@
 import datetime
-import itertools
 import json
 import os.path
 import time
@@ -119,7 +118,6 @@ def plot_all_runs(data, parameter_name, output_dir):
     plt.show()
 
 
-
 def plot_std(data, parameter_name, output_dir):
     # Create a figure and axis
     fig, ax = plt.subplots()
@@ -151,12 +149,17 @@ def plot_std(data, parameter_name, output_dir):
     plt.show()
 
 
-
 def _get_out_dir() -> str:
     out_dir = os.path.join(OUT_DIR, datetime.datetime.now().strftime('%y%m%d-%H%M%S'))
     assert not os.path.exists(out_dir)
     os.makedirs(out_dir, exist_ok=True)
     return out_dir
+
+
+def write_times(output_dir: str, value_to_change: str, parameter_values: list, avg_times: list[float]) -> None:
+    df = pd.DataFrame(data=[parameter_values, avg_times]).T
+    df.columns = [value_to_change, "avg_time"]
+    df.to_csv(os.path.join(output_dir, "times.csv"), index=False)
 
 
 def single_parameter_change(hyperparams: dict, value_to_change: str, value_options: list, verbose=False) -> dict:
@@ -169,16 +172,25 @@ def single_parameter_change(hyperparams: dict, value_to_change: str, value_optio
 
     headers, parameter_combinations = _get_parameters_combinations_and_names(hyperparams)
     parameter_value_to_fitness_evolution: dict[Any, list[list[float]]] = {}
+    parameter_values = []
+    avg_times = []
     for combination in tqdm.tqdm(parameter_combinations, desc="params combination"):
         curr_params_dict = {name: combination[idx] for (idx, name) in enumerate(headers)}
         parameter_value = curr_params_dict[value_to_change]
         parameter_value_to_fitness_evolution[parameter_value] = []
+        cur_combination_times = []
         with open(os.path.join(SCENE_DIR, curr_params_dict[SCENE_FILENAME_OPTION]), 'r') as fp:
             scene = Scene.from_dict(json.load(fp))
             for _ in range(curr_params_dict[ITERATION_NUMBER_OPTION]):
                 solver = _get_solver_from_params(curr_params_dict, verbose)
+                start_time = time.time()
                 solver.load_scene(scene)
+                cur_combination_times.append(time.time() - start_time)
                 parameter_value_to_fitness_evolution[parameter_value].append(solver.best_fitness_values)
+        parameter_values.append(parameter_value)
+        avg_times.append(sum(cur_combination_times) / len(cur_combination_times))
+
+    write_times(output_dir, value_to_change, parameter_values, avg_times)
     plot_all_runs(parameter_value_to_fitness_evolution, value_to_change, output_dir)
     plot_std(parameter_value_to_fitness_evolution, value_to_change, output_dir)
     return parameter_value_to_fitness_evolution
@@ -217,6 +229,7 @@ def combinations_final_results(hyperparams: dict, verbose=False) -> pd.DataFrame
 if __name__ == '__main__':
     # combinations_final_results(hyperparams=BASE_HYPERPARAMS))
     # combinations_final_results(BASE_HYPERPARAMS, True, verbose=True)
+    # write_times("out", "population_size", [10, 20, 30], [1, 4, 6])
     single_parameter_change(BASE_HYPERPARAMS, POPULATION_SIZE_OPTION, [10, 20, 30], False)
 
     # TODO start with a fixed values and for each parameter check different values and plot graphs of differet values
