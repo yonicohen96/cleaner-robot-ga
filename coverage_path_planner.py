@@ -153,6 +153,7 @@ class CoveragePathPlanner(Solver):
         self.collision_detection = {}
         self.population: list[list[RobotPath]] = []
         self.cell_size = None
+        self.free_cells: set[tuple[int, int]] = set()
 
         self.verbose = verbose
 
@@ -509,7 +510,9 @@ class CoveragePathPlanner(Solver):
         robot_roadmap.add_node(robot.start)
         robot_roadmap.add_node(robot.end)
         for i in range(self.num_landmarks):
-            robot_roadmap.add_node(self.sample_free(robot))
+            new_sample = self.sample_free(robot)
+            self.free_cells.add(get_cell_indices(new_sample, self.min_cell_size))
+            robot_roadmap.add_node(new_sample)
 
         self.nearest_neighbors[robot] = NearestNeighbors_sklearn()
         self.nearest_neighbors[robot].fit(list(robot_roadmap.nodes))
@@ -533,7 +536,7 @@ class CoveragePathPlanner(Solver):
             return
         print(to_print, file=self.writer, *args, **kwargs)
 
-    def updated_cell_size(self, new_cell_size: float) -> None:
+    def update_cell_size(self, new_cell_size: float) -> None:
         """
         Updates the attribute of the class according to a new cell size
         """
@@ -601,7 +604,7 @@ class CoveragePathPlanner(Solver):
             # fitness value is computed with respect to cell size of self.min_cell_size, so in the last iteration we
             # should perform evolution with the target of maximizing the final fitness function.
             if self.cell_size > self.min_cell_size and step >= self.evolution_steps - self.final_steps_num:
-                self.updated_cell_size(self.min_cell_size)
+                self.update_cell_size(self.min_cell_size)
                 self.print("########", self.cell_size)
 
             # Compute fitness value.
@@ -612,7 +615,7 @@ class CoveragePathPlanner(Solver):
                 steps_without_progress += 1
                 if steps_without_progress > self.cell_size_decrease_interval:
                     steps_without_progress = 0
-                    self.updated_cell_size(max(self.cell_size / 2, self.min_cell_size))
+                    self.update_cell_size(max(self.cell_size / 2, self.min_cell_size))
                     self.print("########", self.cell_size)
                     fitness_values = [get_fitness(robots_paths) for robots_paths in self.population]
             self.print("\tmax fitness value: ", max(fitness_values))
@@ -643,6 +646,7 @@ class CoveragePathPlanner(Solver):
         fittest_robot_paths = max(self.population, key=lambda robot_paths: get_fitness(robot_paths))
         self.print(f"number of cells: {self.get_number_of_cells()}")
         self.print(f"chosen individual fitness: {get_fitness(fittest_robot_paths)}")
+        self.print(f"total number of cells: {len(self.free_cells)}")
         for i, robot_path in enumerate(fittest_robot_paths):
             path_collection.add_robot_path(robot_path.robot, Path([PathPoint(point) for point in robot_path.path]))
         return path_collection
