@@ -26,9 +26,9 @@ ADD_REMOVE_MUTATION_RATIO_OPTION = 'add_remove_mutation_ratio'
 MUTATION_STD_OPTION = 'mutation_st'
 BASE_HYPERPARAMS = {
     SCENE_FILENAME_OPTION: ["scene3.json"],
-    ITERATION_NUMBER_OPTION: [3],
+    ITERATION_NUMBER_OPTION: [2],
     POPULATION_SIZE_OPTION: [10],
-    EVOLUTION_STEPS_OPTION: [500],
+    EVOLUTION_STEPS_OPTION: [10],
     MIN_CELL_SIZE_OPTION: [2.0],
     CELL_SIZE_DECREASE_INTERVAL_OPTION: [5],
     FINAL_STEPS_NUM_OPTION: [10],
@@ -44,6 +44,7 @@ AVG_TIME_FIELD = "avg_time"
 AVG_FITNESS_FIELD = "avg_fitness"
 SCENE_DIR = "scenes"
 OUT_DIR = "out"
+SCENES = ["scene1.json", "scene2.json", "scene3.json"]
 
 
 def get_time_and_path_collection(solver, scene):
@@ -118,9 +119,8 @@ def plot_all_runs(data, parameter_name, output_dir):
     plt.show()
 
 
-def plot_std(data, parameter_name, output_dir):
+def plot_std(data: dict[Any, list[list]], parameter_name: str, ax: plt.Axes):
     # Create a figure and axis
-    fig, ax = plt.subplots()
     # Generate a list of colors
     colors = itertools.cycle(plt.cm.tab10.colors)
     # Plot each key with a different color
@@ -143,10 +143,7 @@ def plot_std(data, parameter_name, output_dir):
     # Add labels
     ax.set_xlabel('evolution step')
     ax.set_ylabel('fitness value')
-    ax.set_title(f'Fitness values for different {parameter_name} values')
-    # Show the plot
-    plt.savefig(os.path.join(output_dir, f"{parameter_name}_std.pdf"))
-    plt.show()
+
 
 
 def _get_out_dir() -> str:
@@ -156,13 +153,13 @@ def _get_out_dir() -> str:
     return out_dir
 
 
-def write_times(output_dir: str, value_to_change: str, parameter_values: list, avg_times: list[float]) -> None:
-    df = pd.DataFrame(data=[parameter_values, avg_times]).T
-    df.columns = [value_to_change, "avg_time"]
+def write_times(output_dir: str, headers: list[str], values: list):
+    df = pd.DataFrame(data=values).T
+    df.columns = headers
     df.to_csv(os.path.join(output_dir, "times.csv"), index=False)
 
 
-def single_parameter_change(hyperparams: dict, value_to_change: str, value_options: list, verbose=False) -> dict:
+def single_scene_single_parameter_change(hyperparams: dict, value_to_change: str, value_options: list, verbose=False) -> dict:
     assert all([len(value) == 1 for value in hyperparams.values()])
     assert value_to_change in hyperparams
     output_dir = _get_out_dir()
@@ -190,10 +187,61 @@ def single_parameter_change(hyperparams: dict, value_to_change: str, value_optio
         parameter_values.append(parameter_value)
         avg_times.append(sum(cur_combination_times) / len(cur_combination_times))
 
-    write_times(output_dir, value_to_change, parameter_values, avg_times)
-    plot_all_runs(parameter_value_to_fitness_evolution, value_to_change, output_dir)
-    plot_std(parameter_value_to_fitness_evolution, value_to_change, output_dir)
+    write_times(output_dir, [value_to_change, "time"], [parameter_values, avg_times])
+
+    # plot_all_runs(parameter_value_to_fitness_evolution, value_to_change, output_dir, ax)
+    fig, ax = plt.subplots()
+    plot_std(parameter_value_to_fitness_evolution, value_to_change, ax)
+    ax.set_title(f'Fitness values for different {value_to_change} values')
+    # Show the plot
+    plt.savefig(os.path.join(output_dir, f"{value_to_change}_std.pdf"))
+    plt.show()
     return parameter_value_to_fitness_evolution
+
+
+def all_scenes_single_parameter_change(hyperparams: dict, value_to_change: str, value_options: list, verbose=False) -> dict:
+    assert all([len(value) == 1 for value in hyperparams.values()])
+    assert value_to_change in hyperparams
+    if SCENE_FILENAME_OPTION in hyperparams:
+        del hyperparams[SCENE_FILENAME_OPTION]
+    output_dir = _get_out_dir()
+    hyperparams[value_to_change] = value_options
+    with open(os.path.join(output_dir, 'hyperparams.json'), 'w') as file:
+        json.dump(hyperparams, file, indent=4)
+    headers, parameter_combinations = _get_parameters_combinations_and_names(hyperparams)
+    parameter_values = []
+    avg_times = []
+    scenes_names = []
+    fig, ax = plt.subplots(1, len(SCENES), figsize=(20, 7))
+    fig.suptitle(f'Fitness values for different {value_to_change} values')
+    for scene_idx, scene_name in enumerate(SCENES):
+        ax[scene_idx].set_title(scene_name.split(".")[0])
+        with open(os.path.join(SCENE_DIR, scene_name), 'r') as fp:
+            scene = Scene.from_dict(json.load(fp))
+            parameter_value_to_fitness_evolution: dict[Any, list[list[float]]] = {}
+            for combination in tqdm.tqdm(parameter_combinations, desc="params combination"):
+                curr_params_dict = {name: combination[idx] for (idx, name) in enumerate(headers)}
+                parameter_value = curr_params_dict[value_to_change]
+                parameter_value_to_fitness_evolution[parameter_value] = []
+                cur_combination_times = []
+                for _ in range(curr_params_dict[ITERATION_NUMBER_OPTION]):
+                    solver = _get_solver_from_params(curr_params_dict, verbose)
+                    start_time = time.time()
+                    solver.load_scene(scene)
+                    cur_combination_times.append(time.time() - start_time)
+                    parameter_value_to_fitness_evolution[parameter_value].append(solver.best_fitness_values)
+                parameter_values.append(parameter_value)
+                scenes_names.append(scene_name)
+                avg_times.append(sum(cur_combination_times) / len(cur_combination_times))
+
+        # plot_all_runs(parameter_value_to_fitness_evolution, value_to_change, output_dir)
+        plot_std(parameter_value_to_fitness_evolution, value_to_change, ax[scene_idx])
+    # Show the plot
+    plt.savefig(os.path.join(output_dir, f"{value_to_change}_std.pdf"))
+    plt.show()
+    write_times(output_dir, ["scene_name", value_to_change, "time"], [scenes_names, parameter_values, avg_times])
+    return parameter_value_to_fitness_evolution
+
 
 
 def combinations_final_results(hyperparams: dict, verbose=False) -> pd.DataFrame:
@@ -227,10 +275,5 @@ def combinations_final_results(hyperparams: dict, verbose=False) -> pd.DataFrame
 
 if __name__ == '__main__':
     # combinations_final_results(hyperparams=BASE_HYPERPARAMS)
-    single_parameter_change(BASE_HYPERPARAMS, POPULATION_SIZE_OPTION, [10, 20, 30], True)
-
-    # TODO start with a fixed values and for each parameter check different values and plot graphs of differet values
-    #  as a function of evolutio steps. for example different population size, and number iterations is 3,
-    #  then create a graph that each of the population size values is a color so for each color we should have 3 curves.
-
-
+    # all_scenes_single_parameter_change(BASE_HYPERPARAMS, CELL_SIZE_DECREASE_INTERVAL_OPTION, [5, 20], True)
+    single_scene_single_parameter_change(BASE_HYPERPARAMS, CELL_SIZE_DECREASE_INTERVAL_OPTION, [5, 20], True)
