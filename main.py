@@ -27,24 +27,27 @@ MUTATE_GAUSS_OPTION = 'mutate_gauss'
 ADD_REMOVE_MUTATION_RATIO_OPTION = 'add_remove_mutation_ratio'
 MUTATION_STD_OPTION = 'mutation_st'
 
-NUMERICAL_OPTIONS_LIST = [
-    SCENE_FILENAME_OPTION,
-    ITERATION_NUMBER_OPTION,
-    POPULATION_SIZE_OPTION,
-    EVOLUTION_STEPS_OPTION,
-    MIN_CELL_SIZE_OPTION,
-    CELL_SIZE_DECREASE_INTERVAL_OPTION,
-    FINAL_STEPS_NUM_OPTION,
-    RANDOM_POINT_INITIALIZATION_OPTION,
-    ELITE_PROPORTION_OPTION,
-    CROSSOVER_MERGE_OPTION,
-    MUTATION_RATE_OPTION,
-    MUTATE_GAUSS_OPTION,
-    ADD_REMOVE_MUTATION_RATIO_OPTION,
-    MUTATION_STD_OPTION,
-]
+BASE_HYPERPARAMS = {
+    SCENE_FILENAME_OPTION: ["scene3.json"],
+    ITERATION_NUMBER_OPTION: [3],
+    POPULATION_SIZE_OPTION: [10],
+    EVOLUTION_STEPS_OPTION: [400],
+    MIN_CELL_SIZE_OPTION: [1.0],
+    CELL_SIZE_DECREASE_INTERVAL_OPTION: [5],
+    FINAL_STEPS_NUM_OPTION: [10],
+    RANDOM_POINT_INITIALIZATION_OPTION: [0],
+    ELITE_PROPORTION_OPTION: [0.2],
+    CROSSOVER_MERGE_OPTION: [0],
+    MUTATION_RATE_OPTION: [0.5],
+    MUTATE_GAUSS_OPTION: [1],
+    ADD_REMOVE_MUTATION_RATIO_OPTION: [0.8],
+    MUTATION_STD_OPTION: [2],
+}
+
 AVG_TIME_FIELD = "avg_time"
 AVG_FITNESS_FIELD = "avg_fitness"
+SCENE_DIR = "scenes"
+OUT_DIR = "out"
 
 
 def get_time_and_path_collection(solver, scene):
@@ -66,7 +69,7 @@ def path_collection_to_robot_paths(path_collection: PathCollection, cell_size: f
 def run_exp(hyperparams: dict, save: bool = False, output_path: str = "", verbose=False) -> pd.DataFrame:
     if save:
         output_filename = datetime.datetime.now().strftime('%y%m%d-%H%M.csv')
-        output_path = output_path or os.path.join("out", output_filename)
+        output_path = output_path or os.path.join(OUT_DIR, output_filename)
         assert not os.path.exists(output_path)
     headers = []
     parameters_values = []
@@ -78,7 +81,7 @@ def run_exp(hyperparams: dict, save: bool = False, output_path: str = "", verbos
     parameter_combinations = list(itertools.product(*parameters_values))
     for combination in tqdm.tqdm(parameter_combinations, desc="params combination"):
         curr_params_dict = {name: combination[idx] for (idx, name) in enumerate(headers)}
-        with open(os.path.join("scenes", curr_params_dict[SCENE_FILENAME_OPTION]), 'r') as fp:
+        with open(os.path.join(SCENE_DIR, curr_params_dict[SCENE_FILENAME_OPTION]), 'r') as fp:
             scene = Scene.from_dict(json.load(fp))
             solver = CoveragePathPlanner(population_size=curr_params_dict[POPULATION_SIZE_OPTION],
                                          evolution_steps=curr_params_dict[EVOLUTION_STEPS_OPTION],
@@ -121,7 +124,7 @@ def run_exp(hyperparams: dict, save: bool = False, output_path: str = "", verbos
 
 def get_coef(filename):
     # Step 1: Read the CSV file into a pandas DataFrame
-    data = pd.read_csv(os.path.join("out", filename))
+    data = pd.read_csv(os.path.join(OUT_DIR, filename))
 
     # Step 2: Separate the features (A, B, C) and the target variable (D)
     X = data[NUMERICAL_OPTIONS_LIST]
@@ -151,7 +154,7 @@ def get_coef(filename):
 
 def get_correlation():
     # Step 1: Read the CSV file into a pandas DataFrame
-    data = pd.read_csv(os.path.join("out", "240514-2048.csv"))
+    data = pd.read_csv(os.path.join(OUT_DIR, "240514-2048.csv"))
 
     # Step 2: Separate the features (A, B, C) and the target variable (D)
     X = data[NUMERICAL_OPTIONS_LIST + [AVG_TIME_FIELD, AVG_FITNESS_FIELD]]
@@ -173,25 +176,11 @@ def first_params_initialization():
 
 
 def single_debug_experiment(save: bool):
-    hyperparams = {
-        SCENE_FILENAME_OPTION: ["scene3.json"],
-        ITERATION_NUMBER_OPTION: [1],
-        POPULATION_SIZE_OPTION: [10],
-        EVOLUTION_STEPS_OPTION: [50],
-        MIN_CELL_SIZE_OPTION: [1.0],
-        CELL_SIZE_DECREASE_INTERVAL_OPTION: [5],
-        FINAL_STEPS_NUM_OPTION: [10],
-        RANDOM_POINT_INITIALIZATION_OPTION: [0],
-        ELITE_PROPORTION_OPTION: [0.1],
-        CROSSOVER_MERGE_OPTION: [0],
-        MUTATION_RATE_OPTION: [0.5],
-        MUTATE_GAUSS_OPTION: [1],
-        ADD_REMOVE_MUTATION_RATIO_OPTION: [0.8],
-        MUTATION_STD_OPTION: [2],
-    }
-
-    run_exp(hyperparams, save=save, verbose=True)
+    run_exp(BASE_HYPERPARAMS, save=save, verbose=True)
 
 
 if __name__ == '__main__':
     single_debug_experiment(True)
+    # TODO start with a fixed values and for each parameter check different values and plot graphs of differet values
+    #  as a function of evolutio steps. for example different population size, and number iterations is 3,
+    #  then create a graph that each of the population size values is a color so for each color we should have 3 curves.
