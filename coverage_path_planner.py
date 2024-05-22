@@ -111,7 +111,7 @@ class CoveragePathPlanner(Solver):
                  k=15,
                  bounding_margin_width_factor=Solver.DEFAULT_BOUNDS_MARGIN_FACTOR,
                  population_size: int = 10,
-                 evolution_steps: int = 400,
+                 evolution_steps: int = 500,
                  min_cell_size: float = 2.0,
                  cell_size_decrease_interval: int = 5,
                  final_steps_num: int = 10,
@@ -179,7 +179,7 @@ class CoveragePathPlanner(Solver):
             'bounding_margin_width_factor': (
                 'Margin width factor (for bounding box):', Solver.DEFAULT_BOUNDS_MARGIN_FACTOR, FT),
             'population_size': ('population size:', 10, int),
-            'evolution_steps': ('evolution steps:', 400, int),
+            'evolution_steps': ('evolution steps:', 500, int),
             'min_cell_size': ('min cell size:', 2.0, float),
             'cell_size_decrease_interval': ('cell_size_decrease_interval', 5, int),
             'final_steps_num': ('final_steps_num', 10, int),
