@@ -610,7 +610,6 @@ class CoveragePathPlanner(Solver):
         best_fitness_value = 0
         for step in range(self.evolution_steps):
 
-
             # In the last `self.final_steps_num` steps, change the cell size to min_cell_size: the final
             # fitness value is computed with respect to cell size of self.min_cell_size, so in the last iteration we
             # should perform evolution with the target of maximizing the final fitness function.

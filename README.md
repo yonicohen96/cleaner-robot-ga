@@ -3,6 +3,7 @@ A solver for the Coverage Path Planning (CPP) problem that uses a genetic algori
 Supports multiple robots scenarios.
 This solver uses the  [DiscoPygal](https://www.cs.tau.ac.il/~cgl/discopygal/docs/index.html)
  framework.
+![Alt text](algorithm_scheme.png)
 
 ## Example Usage
 ### Requirements
