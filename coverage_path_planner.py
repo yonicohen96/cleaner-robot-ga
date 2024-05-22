@@ -102,6 +102,8 @@ class CoveragePathPlanner(Solver):
     :type mutation_std: :class:`float`
     :param verbose: Whether to print the results.
     :type verbose: :class:`int`
+    :param print_prefix: A prefix to print every time "self.print" is called.
+    :type print_prefix: :class:`str`
     """
 
     def __init__(self,
@@ -189,6 +191,7 @@ class CoveragePathPlanner(Solver):
             'add_remove_mutation_ratio': ('add_remove_mutation_ratio', 0.8, float),
             'mutation_std': ('mutation_std', 2, float),
             'verbose': ('verbose:', 1, int),
+            'print_prefix': ('print_prefix:', "", str),
         }
 
     @staticmethod
@@ -216,6 +219,7 @@ class CoveragePathPlanner(Solver):
                                    d['add_remove_mutation_ratio'],
                                    d['mutation_std'],
                                    d['verbose'],
+                                   d['print_prefix'],
                                    )
 
     def collision_free(self, p1: Point_2, p2: Point_2, robot: Robot):
