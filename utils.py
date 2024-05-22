@@ -82,3 +82,8 @@ def random_choices_no_repetitions(population: list[Any], weights: list[float] | 
         if sum(weights) == 0:
             weights = np.full(len(weights), 1 / len(weights))
     return result
+
+
+def get_status_string(name: str, curr_count: int, total_count: int) -> str:
+    """Returns a status string for printing."""
+    return f"{name}: [{curr_count} / {total_count}]"

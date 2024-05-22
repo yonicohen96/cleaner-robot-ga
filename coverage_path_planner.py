@@ -120,7 +120,8 @@ class CoveragePathPlanner(Solver):
                  mutate_gauss: int = 1,
                  add_remove_mutation_ratio: float = 0.8,
                  mutation_std: float = 2,
-                 verbose: int = 1):
+                 verbose: int = 1,
+                 print_prefix: str = ""):
         assert population_size > 1
         # Check that elite population is not the entire population.
         assert population_size > int(elite_proportion * population_size)
@@ -158,6 +159,7 @@ class CoveragePathPlanner(Solver):
         self.best_fitness_values: list[float] = []
 
         self.verbose = verbose
+        self.print_prefix = print_prefix
 
     @staticmethod
     def get_arguments():
@@ -536,6 +538,8 @@ class CoveragePathPlanner(Solver):
         """
         if not self.verbose:
             return
+        if self.print_prefix:
+            to_print = " | ".join([self.print_prefix, to_print])
         print(to_print, file=self.writer, *args, **kwargs)
 
     def update_cell_size(self, new_cell_size: float) -> None:
@@ -613,7 +617,8 @@ class CoveragePathPlanner(Solver):
             fitness_values = [get_fitness(robots_paths) for robots_paths in self.population]
             max_fitness_value = max(fitness_values)
             if step % 10 == 0:
-                self.print(f'\tstep [{step} / {self.evolution_steps}], max fitness value: {max_fitness_value}')
+                self.print(get_status_string("step", step, self.evolution_steps),
+                           f'max fitness value: {max_fitness_value}')
 
             self.best_fitness_values.append(max(fitness_values))
 

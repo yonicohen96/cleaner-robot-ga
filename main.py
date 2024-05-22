@@ -71,7 +71,7 @@ def _path_collection_to_robot_paths(path_collection: PathCollection, cell_size: 
     return robot_paths
 
 
-def _get_solver_from_params(params_dict: dict[str, Any], verbose: bool = True) -> CoveragePathPlanner:
+def _get_solver_from_params(params_dict: dict[str, Any], verbose: bool = True, prefix: str = "") -> CoveragePathPlanner:
     return CoveragePathPlanner(population_size=params_dict[POPULATION_SIZE_OPTION],
                                evolution_steps=params_dict[EVOLUTION_STEPS_OPTION],
                                min_cell_size=params_dict[MIN_CELL_SIZE_OPTION],
@@ -86,7 +86,8 @@ def _get_solver_from_params(params_dict: dict[str, Any], verbose: bool = True) -
                                mutate_gauss=params_dict[MUTATE_GAUSS_OPTION],
                                add_remove_mutation_ratio=params_dict[ADD_REMOVE_MUTATION_RATIO_OPTION],
                                mutation_std=params_dict[MUTATION_STD_OPTION],
-                               verbose=verbose
+                               verbose=verbose,
+                               print_prefix=prefix
                                )
 
 
@@ -180,15 +181,18 @@ def single_scene_single_parameter_change(hyperparams: dict, value_to_change: str
     parameter_value_to_fitness_evolution: dict[Any, list[list[float]]] = {}
     parameter_values = []
     avg_times = []
-    for combination in tqdm.tqdm(parameter_combinations, desc="params combination"):
+    for params_combination_idx, combination in enumerate(parameter_combinations):
+        param_prefix = get_status_string("param_value", params_combination_idx + 1, len(parameter_combinations))
         curr_params_dict = {name: combination[idx] for (idx, name) in enumerate(headers)}
         parameter_value = curr_params_dict[value_to_change]
         parameter_value_to_fitness_evolution[parameter_value] = []
         cur_combination_times = []
         with open(os.path.join(SCENE_DIR, curr_params_dict[SCENE_FILENAME_OPTION]), 'r') as fp:
             scene = Scene.from_dict(json.load(fp))
-            for _ in range(curr_params_dict[ITERATION_NUMBER_OPTION]):
-                solver = _get_solver_from_params(curr_params_dict, verbose)
+            total_iterations = curr_params_dict[ITERATION_NUMBER_OPTION]
+            for iteration_number in range(total_iterations):
+                iteration_prefix = get_status_string("iteration", iteration_number + 1, total_iterations)
+                solver = _get_solver_from_params(curr_params_dict, verbose, " | ".join([param_prefix, iteration_prefix]))
                 start_time = time.time()
                 solver.load_scene(scene)
                 cur_combination_times.append(time.time() - start_time)
@@ -226,16 +230,22 @@ def all_scenes_single_parameter_change(hyperparams: dict, value_to_change: str, 
     fig.suptitle(f'Fitness values for different {value_to_change} values')
     for scene_idx, scene_name in enumerate(SCENES):
         ax[scene_idx].set_title(scene_name.split(".")[0])
+        scene_prefix = get_status_string("scene", scene_idx + 1, len(SCENES))
         with open(os.path.join(SCENE_DIR, scene_name), 'r') as fp:
             scene = Scene.from_dict(json.load(fp))
             parameter_value_to_fitness_evolution: dict[Any, list[list[float]]] = {}
-            for combination in tqdm.tqdm(parameter_combinations, desc="params combination"):
+            for params_combination_idx, combination in enumerate(parameter_combinations):
+                param_prefix = get_status_string("param_value", params_combination_idx + 1, len(parameter_combinations))
                 curr_params_dict = {name: combination[idx] for (idx, name) in enumerate(headers)}
                 parameter_value = curr_params_dict[value_to_change]
                 parameter_value_to_fitness_evolution[parameter_value] = []
                 cur_combination_times = []
-                for _ in range(curr_params_dict[ITERATION_NUMBER_OPTION]):
-                    solver = _get_solver_from_params(curr_params_dict, verbose)
+                total_iterations = curr_params_dict[ITERATION_NUMBER_OPTION]
+                for iteration_number in range(total_iterations):
+                    iteration_prefix = get_status_string("iteration", iteration_number + 1, total_iterations)
+                    solver = _get_solver_from_params(curr_params_dict, verbose, " | ".join([
+                        scene_prefix, param_prefix, iteration_prefix
+                    ]))
                     start_time = time.time()
                     solver.load_scene(scene)
                     cur_combination_times.append(time.time() - start_time)
@@ -370,7 +380,6 @@ if __name__ == '__main__':
         if value is not None and arg in hyperparams:
             # print(arg, type(value))
             hyperparams[arg] = [value]
-    print(type(hyperparams))
 
     def get_arg_type(flag):
         for action in parser._actions:
@@ -381,21 +390,15 @@ if __name__ == '__main__':
     # Add parameter value to check
     parameter_to_check = args_dict["parameter_to_check"]
     param_type = get_arg_type(parameter_to_check)
-    parameter_values = [param_type(param_value) for param_value in args_dict["parameter_values"]]
+    input_parameter_values = [param_type(param_value) for param_value in args_dict["parameter_values"]]
     out_dir = args_dict["out_dir"]
-    scene = args_dict[SCENE_FILENAME_OPTION]
-
+    scene_filename = args_dict[SCENE_FILENAME_OPTION]
 
     # Run the experiment.
-    if scene:
-        single_scene_single_parameter_change(hyperparams, parameter_to_check, parameter_values, True, out_dir)
-        print(1)
+    if scene_filename:
+        single_scene_single_parameter_change(hyperparams, parameter_to_check, input_parameter_values,
+                                             True, out_dir)
     else:
-        all_scenes_single_parameter_change(hyperparams, parameter_to_check, parameter_values, True, out_dir)
-        # all_scenes_single_parameter_change(BASE_HYPERPARAMS, POPULATION_SIZE_OPTION, [10, 20, 30], True)
-        print(2)
+        all_scenes_single_parameter_change(hyperparams, parameter_to_check, input_parameter_values,
+                                           True, out_dir)
 
-    # TODO - for every experiment:
-    #   - the right hyperparams are provided - from all types
-    #   - the right parameter to check from all types
-    #   - out dir
