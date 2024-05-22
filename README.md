@@ -1,5 +1,5 @@
 # cleaner-robot-ga
-A solver for the Coverage Path planning problem that uses a genetic algorithm approach.
+A solver for the Coverage Path Planning (CPP) problem that uses a genetic algorithm approach.
 Supports multiple robots scenarios.
 This solver uses the  [DiscoPygal](https://www.cs.tau.ac.il/~cgl/discopygal/docs/index.html)
  framework.

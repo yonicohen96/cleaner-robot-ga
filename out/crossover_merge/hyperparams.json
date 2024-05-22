@@ -1,0 +1,42 @@
+{
+    "iteration_number": [
+        3
+    ],
+    "population_size": [
+        10
+    ],
+    "evolution_steps": [
+        100
+    ],
+    "min_cell_size": [
+        2.0
+    ],
+    "cell_size_decrease_interval": [
+        5
+    ],
+    "final_steps_num": [
+        10
+    ],
+    "random_point_initialization": [
+        0
+    ],
+    "elite_proportion": [
+        0.2
+    ],
+    "crossover_merge": [
+        0,
+        1
+    ],
+    "mutation_rate": [
+        0.5
+    ],
+    "mutate_gauss": [
+        1
+    ],
+    "add_remove_mutation_ratio": [
+        0.8
+    ],
+    "mutation_std": [
+        2
+    ]
+}

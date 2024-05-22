@@ -3,7 +3,7 @@ A script for running genetic algorithm-based experiments to solve the coverage p
 
 Example usage
 
-for more information about the paramters for the script, please run: python main.py --help
+for more information about the parameters for the script, please run: python main.py --help
 """
 import argparse
 import datetime
@@ -295,6 +295,38 @@ def flag(flag_name: str) -> str:
     return "--" + flag_name
 
 
+def main(args):
+    args_dict = vars(args)
+
+    # Update hyperparameters dictionary with user choices.
+    hyperparams = BASE_HYPERPARAMS.copy()
+    for arg, value in args_dict.items():
+        if value is not None and arg in hyperparams:
+            # print(arg, type(value))
+            hyperparams[arg] = [value]
+
+    def get_arg_type(flag):
+        for action in parser._actions:
+            if action.dest == flag:
+                return action.type
+        return None
+
+    # Add parameter value to check
+    parameter_to_check = args_dict["parameter_to_check"]
+    param_type = get_arg_type(parameter_to_check)
+    input_parameter_values = [param_type(param_value) for param_value in args_dict["parameter_values"]]
+    out_dir = args_dict["out_dir"]
+    scene_filename = args_dict[SCENE_FILENAME_OPTION]
+
+    # Run the experiment.
+    if scene_filename:
+        single_scene_single_parameter_change(hyperparams, parameter_to_check, input_parameter_values,
+                                             True, out_dir)
+    else:
+        all_scenes_single_parameter_change(hyperparams, parameter_to_check, input_parameter_values,
+                                           True, out_dir)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=" A script for running experiments for a solver that uses a genetic"
                                                  " algorithm approach to solve the coverage path planning problem.",
@@ -370,34 +402,4 @@ if __name__ == '__main__':
     parser.add_argument(flag(MUTATION_STD_OPTION), type=int, default=2,
                         help="The standard deviation for the gaussian mutation strategy.")
 
-    args = parser.parse_args()
-
-    args_dict = vars(args)
-
-    # Update hyperparameters dictionary with user choices.
-    hyperparams = BASE_HYPERPARAMS.copy()
-    for arg, value in args_dict.items():
-        if value is not None and arg in hyperparams:
-            # print(arg, type(value))
-            hyperparams[arg] = [value]
-
-    def get_arg_type(flag):
-        for action in parser._actions:
-            if action.dest == flag:
-                return action.type
-        return None
-
-    # Add parameter value to check
-    parameter_to_check = args_dict["parameter_to_check"]
-    param_type = get_arg_type(parameter_to_check)
-    input_parameter_values = [param_type(param_value) for param_value in args_dict["parameter_values"]]
-    out_dir = args_dict["out_dir"]
-    scene_filename = args_dict[SCENE_FILENAME_OPTION]
-
-    # Run the experiment.
-    if scene_filename:
-        single_scene_single_parameter_change(hyperparams, parameter_to_check, input_parameter_values,
-                                             True, out_dir)
-    else:
-        all_scenes_single_parameter_change(hyperparams, parameter_to_check, input_parameter_values,
-                                           True, out_dir)
+    main(parser.parse_args())
