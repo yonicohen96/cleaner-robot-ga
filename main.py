@@ -53,6 +53,8 @@ AVG_FITNESS_FIELD = "avg_fitness"
 SCENE_DIR = "scenes"
 OUT_DIR = "out"
 SCENES = ["scene1.json", "scene2.json", "scene3.json"]
+SCENE_NAME_HEADER = "scene_name"
+AVG_TIME_HEADER = "avg_time"
 
 
 def _get_time_and_path_collection(solver, scene):
@@ -157,21 +159,49 @@ def _plot_std(data: dict[Any, list[list]], parameter_name: str, ax: plt.Axes):
 def _get_out_dir(dir_name: str | None = None) -> str:
     dir_name = dir_name or datetime.datetime.now().strftime('%y%m%d-%H%M%S')
     out_dir = os.path.join(OUT_DIR, dir_name)
-    assert not os.path.exists(out_dir)
+    assert not os.path.exists(out_dir), "Please provide a output directory that is currently non-existent."
     os.makedirs(out_dir, exist_ok=True)
     return out_dir
 
 
-def _write_times(output_dir: str, headers: list[str], values: list):
+def _plot_times(df: pd.DataFrame, dir: str, changed_parameter_name: str, num_steps: int):
+    categories = df[SCENE_NAME_HEADER].unique()
+    labels = df[changed_parameter_name].unique()
+    category_data = {category: [0] * len(labels) for category in categories}
+    for _, row in df.iterrows():
+        category_data[row[SCENE_NAME_HEADER]][np.where(
+            labels == row[changed_parameter_name])[0][0]] = row[AVG_TIME_HEADER]
+
+    colors = plt.cm.tab10.colors
+    fig, ax = plt.subplots(figsize=(10, 6))
+    bar_width = 0.2
+    x = np.arange(len(categories))
+    for i, label in enumerate(labels):
+        y = [category_data[category][i] for category in categories]
+        ax.bar(x + i * bar_width, y, bar_width, label=label, color=colors[i])
+
+    ax.set_xticks(x + bar_width * (len(labels) - 1) / 2)
+    ax.set_xticklabels([category_name.split(".")[0] for category_name in categories])
+    ax.set_ylabel('Avg time (s)')
+    ax.legend(title=changed_parameter_name)
+
+    plt.title(f'Average Time for {num_steps} Evolution Steps')
+    plt.savefig(os.path.join(dir, f"avg_times_plot.pdf"))
+    plt.show()
+
+
+def _write_times(output_dir: str, headers: list[str], values: list) -> pd.DataFrame:
     df = pd.DataFrame(data=values).T
     df.columns = headers
     df.to_csv(os.path.join(output_dir, "times.csv"), index=False)
+    return df
 
 
 def single_scene_single_parameter_change(hyperparams: dict, value_to_change: str, value_options: list,
                                          verbose=False, out_dir: str | None = None) -> dict:
     assert all([len(value) == 1 for value in hyperparams.values()])
     assert value_to_change in hyperparams
+    assert len(hyperparams[EVOLUTION_STEPS_OPTION]) == 1
     output_dir = _get_out_dir(out_dir)
     hyperparams[value_to_change] = value_options
     with open(os.path.join(output_dir, 'hyperparams.json'), 'w') as file:
@@ -200,9 +230,7 @@ def single_scene_single_parameter_change(hyperparams: dict, value_to_change: str
         parameter_values.append(parameter_value)
         avg_times.append(sum(cur_combination_times) / len(cur_combination_times))
 
-    _write_times(output_dir, [value_to_change, "avg_time"], [parameter_values, avg_times])
-
-    # _plot_all_runs(parameter_value_to_fitness_evolution, value_to_change, output_dir, ax)
+    _write_times(output_dir, [value_to_change, AVG_TIME_HEADER], [parameter_values, avg_times])
     fig, ax = plt.subplots()
     _plot_std(parameter_value_to_fitness_evolution, value_to_change, ax)
     ax.set_title(f'Fitness values for different {value_to_change} values')
@@ -216,6 +244,7 @@ def all_scenes_single_parameter_change(hyperparams: dict, value_to_change: str, 
                                        verbose: bool = False, out_dir: str | None = None) -> dict:
     assert all([len(value) == 1 for value in hyperparams.values()])
     assert value_to_change in hyperparams
+    assert len(hyperparams[EVOLUTION_STEPS_OPTION]) == 1
     if SCENE_FILENAME_OPTION in hyperparams:
         del hyperparams[SCENE_FILENAME_OPTION]
     output_dir = _get_out_dir(out_dir)
@@ -259,7 +288,9 @@ def all_scenes_single_parameter_change(hyperparams: dict, value_to_change: str, 
     # Show the plot
     plt.savefig(os.path.join(output_dir, f"{value_to_change}_std.pdf"))
     plt.show()
-    _write_times(output_dir, ["scene_name", value_to_change, "avg_time"], [scenes_names, parameter_values, avg_times])
+    times_df = _write_times(output_dir, [SCENE_NAME_HEADER, value_to_change, AVG_TIME_HEADER],
+                            [scenes_names, parameter_values, avg_times])
+    _plot_times(times_df, output_dir, value_to_change, hyperparams[EVOLUTION_STEPS_OPTION][0])
     return parameter_value_to_fitness_evolution
 
 
