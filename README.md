@@ -1,5 +1,6 @@
 # cleaner-robot-ga
 A solver for the Coverage Path Planning (CPP) problem that uses a genetic algorithm approach.
+The rationale for this implementation is detailed in [this paper](paper.pdf)
 Supports multiple robots scenarios.
 This solver uses the  [DiscoPygal](https://www.cs.tau.ac.il/~cgl/discopygal/docs/index.html)
  framework.
@@ -37,7 +38,7 @@ with a specific scene filename.
 
 
 #### Outputs
-The output of the script is in a directory under `out` directory. The name of the output directory
+The output of the script is in a directory under `out` directory, which contains some output examples. The name of the output directory
 can be passed using the `--out_dir` argument, and if it is not provided then the name of the directory
 is the start time of the experiment.
 The output files are:
@@ -67,6 +68,14 @@ Running an experiment for a specific scene.
 ```bash
 python main.py --scene_filename scene3.json --parameter_to_check population_size --parameter_values 10 20  --mutation_rate 0.4 --evolution_steps 30  --out_dir example2
 ```
+
+#### Using GUI
+Running the following command in the terminal opens a GUI in which a scene and the solver can
+be loaded, for results visualizations.
+```bash
+solver_viewer
+```
+
 
 ## Acknowledgements
 This project was made possible by the [DiscoPygal](https://www.cs.tau.ac.il/~cgl/discopygal/docs/index.html) suite of 
